@@ -17,10 +17,20 @@ typedef struct BackwardMatrices {
 } BackwardPassResult;
 
 typedef struct LinearLayer {
-    float** w;
+    float** w; // Matrix of size in * out
     int in;
     int out;
+    float (*activation)(float);
 } LinearLayer;
+
+typedef struct ConvLayer {
+    int in;
+    int out;
+    int shape;
+    Square* kernels; // in * out kernels of size shape*shape
+
+    float (*activation)(float);
+} ConvLayer;
 
 void conv_forward(Square input, Square filter, Square output, float (*activation)(float));
 BackwardPassResult conv_backward(Square dY, Square X, Square W);

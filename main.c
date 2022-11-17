@@ -28,7 +28,7 @@ int main(int argc,char** argv) {
     print_square(input);
     print_square(filter);
 
-    conv_forward(input, filter, output, &Identity);
+    conv_forward(input, filter, output, &ReLU);
     print_square(output);
 
     Square dY = CreateZerosMatrix(3);

@@ -2,7 +2,7 @@
 
 // Basic convolution, stride of 1, no padding (or included in X), only squares
 void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for(int i=0; i < Y.shape; i++)
         for(int j=0; j < Y.shape; j++) {
             float sum = 0.0;
