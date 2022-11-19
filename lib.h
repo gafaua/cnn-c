@@ -27,7 +27,7 @@ typedef struct ConvLayer {
     int in;
     int out;
     int shape;
-    Square* kernels; // in * out kernels of size shape*shape
+    Square** kernels; // in * out kernels of size shape*shape
 
     float (*activation)(float);
 } ConvLayer;
@@ -39,6 +39,11 @@ float ReLU(float val);
 float ReLU_backward(float val);
 float Identity(float val);
 
+LinearLayer CreateLinearLayer(int in_channels, int out_channels);
+void DestroyLinearLayer(LinearLayer layer);
+ConvLayer CreateConvLayer(int in_channels, int out_channels, int shape);
+void DestroyConvLayer(ConvLayer c);
+
 Square CreateSquareMatrix(int size);
 Square CreateZerosMatrix(int size);
 Square CopySquareMatrix(Square sq);
@@ -46,6 +51,7 @@ void DestroySquareMatrix(Square s);
 void init_square(Square sq, float val);
 
 float** fmatrix_allocate_2d(int vsize,int hsize);
+Square** square_allocate_2d(int vsize,int hsize);
 void free_fmatrix_2d(float** pmat);
 void init_matrix(float** m, float val, int h, int w);
 void print_matrix(float** m, int h, int w);

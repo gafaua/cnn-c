@@ -58,6 +58,25 @@ void DestroyLinearLayer(LinearLayer layer) {
     free_fmatrix_2d(layer.w);
 }
 
+ConvLayer CreateConvLayer(int in_channels, int out_channels, int shape) {
+    ConvLayer c;
+    c.kernels = square_allocate_2d(in_channels, out_channels);
+    for (int i; i<in_channels; i++) 
+        for (int j; j<out_channels; j++)
+            c.kernels[i][j] = CreateSquareMatrix(shape);
+    c.in = in_channels;
+    c.out = out_channels;
+    c.shape = shape;
+}
+
+void DestroyConvLayer(ConvLayer c) {
+    for (int i; i<c.in; i++) 
+        for (int j; j<c.out; j++)
+            DestroySquareMatrix(c.kernels[i][j]);
+    free(c.kernels[0]);
+    free(c.kernels);
+}
+
 Square CreateSquareMatrix(int size) {
     Square s;
     s.mat = fmatrix_allocate_2d(size, size);
@@ -124,6 +143,26 @@ float** fmatrix_allocate_2d(int vsize,int hsize)
   if (matrix==NULL) printf("probleme d'allocation memoire");
 
   imptr=(float*)malloc(sizeof(float)*hsize*vsize);
+  if (imptr==NULL) printf("probleme d'allocation memoire");
+ 
+  for(i=0;i<vsize;i++,imptr+=hsize) matrix[i]=imptr;
+  return matrix;
+ }
+
+
+/*----------------------------------------------------------*/
+/*  Alloue de la memoire pour une matrice 2d de Square       */
+/*----------------------------------------------------------*/
+Square** square_allocate_2d(int vsize,int hsize)
+ {
+  int i;
+  Square** matrix;
+  Square* imptr;
+
+  matrix=(Square**)malloc(sizeof(Square*)*vsize);
+  if (matrix==NULL) printf("probleme d'allocation memoire");
+
+  imptr=(Square*)malloc(sizeof(Square)*hsize*vsize);
   if (imptr==NULL) printf("probleme d'allocation memoire");
  
   for(i=0;i<vsize;i++,imptr+=hsize) matrix[i]=imptr;
