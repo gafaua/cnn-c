@@ -3,43 +3,42 @@
 #include <stdlib.h>
 #include <string.h>
 #include <omp.h>
+#include <time.h>
 
 #include "lib.h"
 
 int main(int argc,char** argv) {
     int p = omp_get_max_threads();
     printf("Max number of threads used: %d\n\n", p);
+    int a = 5000;
+    int b = 3000;
+    int c = 4000;
+    float** M1 = fmatrix_allocate_2d(a, b);
+    float** M2 = fmatrix_allocate_2d(b, c);
+    float** R = fmatrix_allocate_2d(a, c);
 
-    Square input  = CreateSquareMatrix(5);
-    Square filter = CreateSquareMatrix(3);
+    random_init_matrix(M1, a, b);
+    random_init_matrix(M2, b, c);
+    random_init_matrix(R, a, c);
 
-    Square output = CreateSquareMatrix(get_output_shape(input.shape, filter.shape));
+    // print_matrix(M1, 3, 4);
+    // print_matrix(M2, 4, 2);
+
+    time_t start, end; 
+    printf("Init done, starting multiplication\n");
+    // start timer. 
+    time(&start); 
+
+    matrix_mul_2d(M1, M2, R, a, b, c);
+
+    time(&end); 
     
-    init_square(input, 0.5);
+    time_t time_taken;
 
-    input.mat[1][1] = 2;
-    input.mat[0][1] = 4;
+    time_taken = (end - start);
 
-    init_matrix(filter.mat, 1.0, filter.shape, filter.shape);
-    filter.mat[0][1] = -1;
-    filter.mat[1][0] = -1;
-    filter.mat[1][1] = -1;
-
-    print_square(input);
-    print_square(filter);
-
-    conv_forward(input, filter, output, &ReLU);
-    print_square(output);
-
-    Square dY = CreateZerosMatrix(3);
-    BackwardPassResult res = conv_backward(output, input, filter);
-
-    print_square(res.dW);
-    print_square(res.dX);
-
-    DestroySquareMatrix(input);
-    DestroySquareMatrix(output);
-    DestroySquareMatrix(filter);
+    printf("Time taken for [%d, %d] x [%d, %d]: %ld sec.\n", a, b, b, c, time_taken);
+    //print_matrix(R, a, c);
 
     printf("Done.\n");
 }

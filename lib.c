@@ -15,20 +15,22 @@ void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
 
 // Backward convolutional pass, computing in dX and dW the gradient of the next
 // layer Y w.r.t X and W 
-// TODO MAKE PARALLEL
 BackwardPassResult conv_backward(Square dY, Square X, Square W) {
     BackwardPassResult r;
     r.dX = CreateZerosMatrix(X.shape);
     r.dW = CreateZerosMatrix(W.shape);
 
+    #pragma omp parallel for
     for(int i=0; i < dY.shape; i++)
-        for(int j=0; j < dY.shape; j++)
+        for(int j=0; j < dY.shape; j++) {
+            float dYElem = dY.mat[i][j];
             for(int k=0; k < W.shape; k++)
                 for(int l=0; l < W.shape; l++) {
-                    r.dW.mat[k][l] += X.mat[k+i][l+j] * dY.mat[i][j];
-                    r.dX.mat[k+i][l+j] += W.mat[k][l] * dY.mat[i][j];
+                    r.dW.mat[k][l] += X.mat[k+i][l+j] * dYElem;
+                    r.dX.mat[k+i][l+j] += W.mat[k][l] * dYElem;
                 }
-    
+        }
+
     return r;
 }
 
@@ -48,7 +50,7 @@ float Identity(float val) {
 
 LinearLayer CreateLinearLayer(int in_channels, int out_channels) {
     LinearLayer l;
-    l.w = fmatrix_allocate_2d(in_channels, out_channels);
+    l.w = fmatrix_allocate_2d(out_channels, in_channels);
     l.in = in_channels;
     l.out = out_channels;
     return l;
@@ -60,7 +62,7 @@ void DestroyLinearLayer(LinearLayer layer) {
 
 ConvLayer CreateConvLayer(int in_channels, int out_channels, int shape) {
     ConvLayer c;
-    c.kernels = square_allocate_2d(in_channels, out_channels);
+    c.kernels = square_allocate_2d(out_channels, in_channels);
     for (int i; i<in_channels; i++) 
         for (int j; j<out_channels; j++)
             c.kernels[i][j] = CreateSquareMatrix(shape);
@@ -115,6 +117,30 @@ void init_matrix(float** m, float val, int h, int w) {
         for (int j = 0; j < w; j++)
             m[i][j] = val;
 }
+
+// Initialize matrix with weight in range [0, 1]
+void random_init_matrix(float** m, int h, int w) {
+    for (int i = 0; i < h; i++)
+        for (int j = 0; j < w; j++)
+            m[i][j] = (float)rand()/(float)RAND_MAX;
+}
+
+// TODO test speed, try to transpose M2
+// M1: [a, b] x M2: [b, c] -> R: [a, c]
+void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
+    #pragma omp parallel for shared(M1,M2,R)
+    for(int i = 0; i < a; i++) {
+        for(int k = 0; k < b; k++) { 
+            float m1 = M1[i][k];
+            float* m2 = M2[k];
+            float* r = R[i];
+            for(int j = 0; j < c; j++) {
+                r[j] += m1 * m2[j];
+	        }
+	    }
+    }
+}
+
 
 void print_square(Square s) {
     printf("Matrix of shape %d x %d:\n", s.shape, s.shape);

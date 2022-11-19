@@ -17,7 +17,7 @@ typedef struct BackwardMatrices {
 } BackwardPassResult;
 
 typedef struct LinearLayer {
-    float** w; // Matrix of size in * out
+    float** w; // Matrix of size [out, in] * [in, b] -> [out, b]
     int in;
     int out;
     float (*activation)(float);
@@ -27,7 +27,7 @@ typedef struct ConvLayer {
     int in;
     int out;
     int shape;
-    Square** kernels; // in * out kernels of size shape*shape
+    Square** kernels; // [out, int] kernels of size shape*shape
 
     float (*activation)(float);
 } ConvLayer;
@@ -54,6 +54,9 @@ float** fmatrix_allocate_2d(int vsize,int hsize);
 Square** square_allocate_2d(int vsize,int hsize);
 void free_fmatrix_2d(float** pmat);
 void init_matrix(float** m, float val, int h, int w);
+void random_init_matrix(float** m, int h, int w);
+void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c);
+
 void print_matrix(float** m, int h, int w);
 void print_square(Square s);
 int get_output_shape(int input_size, int filter_size);
