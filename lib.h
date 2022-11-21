@@ -18,13 +18,13 @@ typedef struct BackwardMatrices {
 } BackwardConvResult;
 
 typedef struct Data1D {
-    float** mat; // Matrix of size [n, b]
+    float** mat; // Matrix of size [b, n]
     int n;
     int b;
 } Data1D;
 
 typedef struct Data2D {
-    Square* data; // Equivalent of a tensor of size [size, size, b]
+    Square* data; // Equivalent of a tensor of size [b, size, size]
     int size;
     int b;
 } Data2D;
@@ -58,6 +58,11 @@ float Identity(float val);
 
 Data1D CreateData1D(int features, int batch_size);
 void DestroyData1D(Data1D d);
+Data2D CreateData2D(int size, int batch_size);
+void DestroyData2D(Data2D d);
+
+Data1D squeeze(Data2D d);
+Data2D unsqueeze(Data1D d);
 
 LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient);
 void DestroyLinearLayer(LinearLayer layer);

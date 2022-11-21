@@ -1,5 +1,6 @@
 #include "lib.h"
 
+// TODO REFACOR THIS WITH DATA2D
 // Basic convolution, stride of 1, no padding (or included in X), only squares
 void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
     #pragma omp parallel for
@@ -13,6 +14,7 @@ void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
         }
 }
 
+// TODO REFACOR THIS WITH DATA2D
 // Backward convolutional pass, computing in dX and dW the gradient of the next
 // layer Y w.r.t X and W 
 BackwardConvResult conv_backward(Square dY, Square X, Square W) {
@@ -79,6 +81,7 @@ float Identity(float val) {
     return val;
 }
 
+// Creates data tensor of shape [batch_size, features]
 Data1D CreateData1D(int features, int batch_size) {
     Data1D d;
     d.n = features;
@@ -89,11 +92,66 @@ Data1D CreateData1D(int features, int batch_size) {
 
 void DestroyData1D(Data1D d) {
     free_fmatrix_2d(d.mat);
+    d.mat = NULL;
 }
 
+// Creates data tensor of shape [batch_size, size, size]
+Data2D CreateData2D(int size, int batch_size) {
+    Data2D d;
+    d.size = size;
+    d.b = batch_size;
+    d.data = square_allocate_1d(batch_size);
+    for (int i = 0; i < batch_size; i++)
+        d.data[i] = CreateSquareMatrix(size);
+    return d;
+}
+
+void DestroyData2D(Data2D d) {
+    for (int i = 0; i < d.b; i++)
+        DestroySquareMatrix(d.data[i]);
+    free(d.data);
+    d.data = NULL;
+}
+
+// @param d: Data2D of shape [batch, size, size]
+// @returns d_: Data1D of shape [batch, size*size]
 Data1D squeeze(Data2D d) {
     Data1D d_ = CreateData1D(d.size*d.size, d.b);
 
+    #pragma omp parallel for
+    for (int k = 0; k < d.b; k++) {
+        float** db = d.data[k].mat;
+        float* db_ = d_.mat[k];
+        for (int i = 0; i < d.size; i++) {
+            int vpos = i * d.size;
+            for (int j = 0; j < d.size; j++)
+                db_[vpos + j] = db[i][j];
+        }
+    }
+
+    return d_;
+}
+
+// @param d: Data1D of shape [batch, size]
+// @returns d_: Data2D of shape [batch, sqrt(size), sqrt(size)]
+Data2D unsqueeze(Data1D d) {
+    int size = (int)sqrt((double) d.n);
+    assert(pow((double) size, 2) == (double) d.n && "Can't unsqueeze data with non square number of features");
+
+    Data2D d_ = CreateData2D(size, d.b);
+
+    #pragma omp parallel for
+    for (int k = 0; k < d.b; k++) {
+        float* db = d.mat[k];
+        float** db_ = d_.data[k].mat;
+        for (int i = 0; i < size; i++) {
+            int vpos = i * size;
+            for (int j = 0; j < size; j++)
+                db_[i][j] = db[vpos + j];
+        }
+    }
+
+    return d_;
 }
 
 LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient) {
@@ -110,6 +168,8 @@ LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradie
 void DestroyLinearLayer(LinearLayer layer) {
     free_fmatrix_2d(layer.w);
     if (layer.dW != NULL) free_fmatrix_2d(layer.dW);
+    layer.w = NULL;
+    layer.dW = NULL;
 }
 
 ConvLayer CreateConvLayer(int in_channels, int out_channels, int size) {
@@ -129,6 +189,7 @@ void DestroyConvLayer(ConvLayer c) {
             DestroySquareMatrix(c.kernels[i][j]);
     free(c.kernels[0]);
     free(c.kernels);
+    c.kernels = NULL;
 }
 
 Square CreateSquareMatrix(int size) {
@@ -158,6 +219,7 @@ Square CopySquareMatrix(Square sq) {
 
 void DestroySquareMatrix(Square s) {
     free_fmatrix_2d(s.mat);
+    s.mat = NULL;
 }
 
 void init_square(Square sq, float val) {
@@ -274,6 +336,19 @@ Square** square_allocate_2d(int vsize,int hsize)
   if (imptr==NULL) printf("probleme d'allocation memoire");
  
   for(i=0;i<vsize;i++,imptr+=hsize) matrix[i]=imptr;
+  return matrix;
+ }
+
+/*----------------------------------------------------------*/
+/*  Alloue de la memoire pour une matrice 1d de Square       */
+/*----------------------------------------------------------*/
+Square* square_allocate_1d(int size)
+ {
+  Square* matrix;
+
+  matrix=(Square*)malloc(sizeof(Square)*size);
+  if (matrix==NULL) printf("probleme d'allocation memoire");
+ 
   return matrix;
  }
 
