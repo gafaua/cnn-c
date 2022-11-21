@@ -3,11 +3,11 @@
 // Basic convolution, stride of 1, no padding (or included in X), only squares
 void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
     #pragma omp parallel for
-    for(int i=0; i < Y.shape; i++)
-        for(int j=0; j < Y.shape; j++) {
+    for(int i=0; i < Y.size; i++)
+        for(int j=0; j < Y.size; j++) {
             float sum = 0.0;
-            for(int k=0; k < W.shape; k++)
-                for(int l=0; l < W.shape; l++) 
+            for(int k=0; k < W.size; k++)
+                for(int l=0; l < W.size; l++) 
                     sum += W.mat[k][l] * X.mat[k+i][l+j];
             Y.mat[i][j] = activation(sum);
         }
@@ -17,15 +17,15 @@ void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
 // layer Y w.r.t X and W 
 BackwardConvResult conv_backward(Square dY, Square X, Square W) {
     BackwardConvResult r;
-    r.dX = CreateZerosMatrix(X.shape);
-    r.dW = CreateZerosMatrix(W.shape);
+    r.dX = CreateZerosMatrix(X.size);
+    r.dW = CreateZerosMatrix(W.size);
 
     #pragma omp parallel for
-    for(int i=0; i < dY.shape; i++)
-        for(int j=0; j < dY.shape; j++) {
+    for(int i=0; i < dY.size; i++)
+        for(int j=0; j < dY.size; j++) {
             float dYElem = dY.mat[i][j];
-            for(int k=0; k < W.shape; k++)
-                for(int l=0; l < W.shape; l++) {
+            for(int k=0; k < W.size; k++)
+                for(int l=0; l < W.size; l++) {
                     r.dW.mat[k][l] += X.mat[k+i][l+j] * dYElem;
                     r.dX.mat[k+i][l+j] += W.mat[k][l] * dYElem;
                 }
@@ -34,22 +34,22 @@ BackwardConvResult conv_backward(Square dY, Square X, Square W) {
     return r;
 }
 
-/*  
+/*
     @param layer.w: [output_features, input_features] 
-    @param inputs: [input_features, batch_size]
-    @returns outputs: [output_features, batch_size] */
+    @param inputs: [batch_size, input_features]
+    @returns outputs: [batch_size, output_features] */
 Data1D linear_forward(LinearLayer layer, Data1D inputs) {
     assert(layer.in == inputs.n && "Invalid size of input data for linear layer");
     
     Data1D outputs = CreateData1D(layer.out, inputs.b);
-    matrix_mul_2d(layer.w, inputs.mat, outputs.mat, layer.out, layer.in, inputs.b);
+    matrix_mul_2d_T2(inputs.mat, layer.w, outputs.mat, inputs.b, layer.in, layer.out);
     return outputs;
 }
 
-// @param dY: [output_features, batch_size]
-// @param  X: [input_features, batch_size]
+// @param dY: [batch_size, output_features]
+// @param  X: [batch_size, input_features]
 // @param layer.w: [output_features, input_features]
-// @returns dX: [input_features, batch_size]
+// @returns dX: [batch_size, input_features]
 // @returns layer.dW: [output_features, input_features]
 Data1D linear_backward(Data1D dY, Data1D X, LinearLayer layer) {
     assert(layer.dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
@@ -57,12 +57,12 @@ Data1D linear_backward(Data1D dY, Data1D X, LinearLayer layer) {
     assert(dY.b == X.b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
 
     Data1D dX = CreateData1D(X.n, X.b);
-    init_matrix(dX.mat, 0.0, dX.n, dX.b);
+    init_matrix(dX.mat, 0.0, dX.b, dX.n);
     init_matrix(layer.dW, 0.0, layer.out, layer.in);
-    // dX = layer.w.T * dY
-    matrix_mul_2d_T1(layer.w, dY.mat, dX.mat, dX.n, dY.n, dX.b);
-    // dW = dY * X.T
-    matrix_mul_2d_T2(dY.mat, X.mat, layer.dW, layer.out, X.b, layer.in);
+    // dX = dY * layer.w
+    matrix_mul_2d(dY.mat, layer.w, dX.mat, dX.b, layer.out, dX.n);
+    // dW = dY.T * X
+    matrix_mul_2d_T1(dY.mat, X.mat, layer.dW, layer.out, X.b, layer.in);
 }
 
 float ReLU(float val) {
@@ -83,12 +83,17 @@ Data1D CreateData1D(int features, int batch_size) {
     Data1D d;
     d.n = features;
     d.b = batch_size;
-    d.mat = fmatrix_allocate_2d(features, batch_size);
+    d.mat = fmatrix_allocate_2d(batch_size, features);
     return d;
 }
 
 void DestroyData1D(Data1D d) {
     free_fmatrix_2d(d.mat);
+}
+
+Data1D squeeze(Data2D d) {
+    Data1D d_ = CreateData1D(d.size*d.size, d.b);
+
 }
 
 LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient) {
@@ -107,15 +112,15 @@ void DestroyLinearLayer(LinearLayer layer) {
     if (layer.dW != NULL) free_fmatrix_2d(layer.dW);
 }
 
-ConvLayer CreateConvLayer(int in_channels, int out_channels, int shape) {
+ConvLayer CreateConvLayer(int in_channels, int out_channels, int size) {
     ConvLayer c;
     c.kernels = square_allocate_2d(out_channels, in_channels);
     for (int i; i<in_channels; i++) 
         for (int j; j<out_channels; j++)
-            c.kernels[i][j] = CreateSquareMatrix(shape);
+            c.kernels[i][j] = CreateSquareMatrix(size);
     c.in = in_channels;
     c.out = out_channels;
-    c.shape = shape;
+    c.size = size;
 }
 
 void DestroyConvLayer(ConvLayer c) {
@@ -129,7 +134,7 @@ void DestroyConvLayer(ConvLayer c) {
 Square CreateSquareMatrix(int size) {
     Square s;
     s.mat = fmatrix_allocate_2d(size, size);
-    s.shape = size;
+    s.size = size;
     return s;
 }
 
@@ -141,11 +146,11 @@ Square CreateZerosMatrix(int size) {
 
 Square CopySquareMatrix(Square sq) {
     Square s;
-    s.mat = fmatrix_allocate_2d(sq.shape, sq.shape);
-    s.shape = sq.shape;
+    s.mat = fmatrix_allocate_2d(sq.size, sq.size);
+    s.size = sq.size;
 
-    for(int i=0; i < sq.shape; i++)
-        for(int j=0; j < sq.shape; j++) 
+    for(int i=0; i < sq.size; i++)
+        for(int j=0; j < sq.size; j++) 
             s.mat[i][j] = sq.mat[i][j];
 
     return s;
@@ -156,7 +161,7 @@ void DestroySquareMatrix(Square s) {
 }
 
 void init_square(Square sq, float val) {
-    init_matrix(sq.mat, val, sq.shape, sq.shape);
+    init_matrix(sq.mat, val, sq.size, sq.size);
 }
 
 void init_matrix(float** m, float val, int h, int w) {
@@ -220,8 +225,8 @@ void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c) {
 }
 
 void print_square(Square s) {
-    printf("Matrix of shape %d x %d:\n", s.shape, s.shape);
-    print_matrix(s.mat, s.shape, s.shape);
+    printf("Matrix of size %d x %d:\n", s.size, s.size);
+    print_matrix(s.mat, s.size, s.size);
 }
 
 void print_matrix(float** m, int h, int w) {
@@ -282,8 +287,8 @@ void free_fmatrix_2d(float** pmat)
  }
 
 
-// Returns Y shape of a convulation of a W of size filter_size
+// Returns Y size of a convulation of a W of size filter_size
 // on an X of size X_size
-int get_output_shape(int input_size, int filter_size) {
+int get_output_size(int input_size, int filter_size) {
     return input_size - filter_size + 1;
 } 

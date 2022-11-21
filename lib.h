@@ -9,7 +9,7 @@
 
 typedef struct SquareMatrix {
     float** mat;
-    int shape;
+    int size;
 } Square;
 
 typedef struct BackwardMatrices {
@@ -24,8 +24,8 @@ typedef struct Data1D {
 } Data1D;
 
 typedef struct Data2D {
-    float*** mat; // Matrix of size [n, n, b]
-    int n;
+    Square* data; // Equivalent of a tensor of size [size, size, b]
+    int size;
     int b;
 } Data2D;
 
@@ -40,8 +40,8 @@ typedef struct LinearLayer {
 typedef struct ConvLayer {
     int in;
     int out;
-    int shape;
-    Square** kernels; // [out, in] kernels of size shape*shape
+    int size;
+    Square** kernels; // [out, in] kernels of size size*size
 
     float (*activation)(float);
 } ConvLayer;
@@ -61,7 +61,7 @@ void DestroyData1D(Data1D d);
 
 LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient);
 void DestroyLinearLayer(LinearLayer layer);
-ConvLayer CreateConvLayer(int in_channels, int out_channels, int shape);
+ConvLayer CreateConvLayer(int in_channels, int out_channels, int size);
 void DestroyConvLayer(ConvLayer c);
 
 Square CreateSquareMatrix(int size);
@@ -81,7 +81,7 @@ void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c);
 
 void print_matrix(float** m, int h, int w);
 void print_square(Square s);
-int get_output_shape(int input_size, int filter_size);
+int get_output_size(int input_size, int filter_size);
 
 
 #endif
