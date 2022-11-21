@@ -15,8 +15,8 @@ void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
 
 // Backward convolutional pass, computing in dX and dW the gradient of the next
 // layer Y w.r.t X and W 
-BackwardPassResult conv_backward(Square dY, Square X, Square W) {
-    BackwardPassResult r;
+BackwardConvResult conv_backward(Square dY, Square X, Square W) {
+    BackwardConvResult r;
     r.dX = CreateZerosMatrix(X.shape);
     r.dW = CreateZerosMatrix(W.shape);
 
@@ -34,6 +34,37 @@ BackwardPassResult conv_backward(Square dY, Square X, Square W) {
     return r;
 }
 
+/*  
+    @param layer.w: [output_features, input_features] 
+    @param inputs: [input_features, batch_size]
+    @returns outputs: [output_features, batch_size] */
+Data1D linear_forward(LinearLayer layer, Data1D inputs) {
+    assert(layer.in == inputs.n && "Invalid size of input data for linear layer");
+    
+    Data1D outputs = CreateData1D(layer.out, inputs.b);
+    matrix_mul_2d(layer.w, inputs.mat, outputs.mat, layer.out, layer.in, inputs.b);
+    return outputs;
+}
+
+// @param dY: [output_features, batch_size]
+// @param  X: [input_features, batch_size]
+// @param layer.w: [output_features, input_features]
+// @returns dX: [input_features, batch_size]
+// @returns layer.dW: [output_features, input_features]
+Data1D linear_backward(Data1D dY, Data1D X, LinearLayer layer) {
+    assert(layer.dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
+    assert(dY.n == layer.out && "The gradient from the next layer has not the same number of features than this layer");
+    assert(dY.b == X.b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
+
+    Data1D dX = CreateData1D(X.n, X.b);
+    init_matrix(dX.mat, 0.0, dX.n, dX.b);
+    init_matrix(layer.dW, 0.0, layer.out, layer.in);
+    // dX = layer.w.T * dY
+    matrix_mul_2d_T1(layer.w, dY.mat, dX.mat, dX.n, dY.n, dX.b);
+    // dW = dY * X.T
+    matrix_mul_2d_T2(dY.mat, X.mat, layer.dW, layer.out, X.b, layer.in);
+}
+
 float ReLU(float val) {
     if (val <= 0.0) return 0.0;
     else return val;
@@ -48,16 +79,32 @@ float Identity(float val) {
     return val;
 }
 
-LinearLayer CreateLinearLayer(int in_channels, int out_channels) {
+Data1D CreateData1D(int features, int batch_size) {
+    Data1D d;
+    d.n = features;
+    d.b = batch_size;
+    d.mat = fmatrix_allocate_2d(features, batch_size);
+    return d;
+}
+
+void DestroyData1D(Data1D d) {
+    free_fmatrix_2d(d.mat);
+}
+
+LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient) {
     LinearLayer l;
     l.w = fmatrix_allocate_2d(out_channels, in_channels);
     l.in = in_channels;
     l.out = out_channels;
+
+    l.dW = with_gradient ? fmatrix_allocate_2d(out_channels, in_channels) : NULL;
+ 
     return l;
 }
 
 void DestroyLinearLayer(LinearLayer layer) {
     free_fmatrix_2d(layer.w);
+    if (layer.dW != NULL) free_fmatrix_2d(layer.dW);
 }
 
 ConvLayer CreateConvLayer(int in_channels, int out_channels, int shape) {
@@ -113,6 +160,7 @@ void init_square(Square sq, float val) {
 }
 
 void init_matrix(float** m, float val, int h, int w) {
+    #pragma omp parallel for
     for (int i = 0; i < h; i++)
         for (int j = 0; j < w; j++)
             m[i][j] = val;
@@ -131,8 +179,23 @@ void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
     #pragma omp parallel for shared(M1,M2,R)
     for(int i = 0; i < a; i++) {
         for(int k = 0; k < b; k++) { 
+            float* r = R[i];
             float m1 = M1[i][k];
             float* m2 = M2[k];
+            for(int j = 0; j < c; j++) {
+                r[j] += m1 * m2[j];
+	        }
+	    }
+    }
+}
+
+// M1T: [b, a] x M2: [b, c] -> R: [a, c]
+void matrix_mul_2d_T1(float** M1T, float** M2, float** R, int a, int b, int c) {
+    #pragma omp parallel for shared(M1T,M2,R)
+    for(int k = 0; k < b; k++) { 
+        for(int i = 0; i < a; i++) {
+            float* m2 = M2[k];
+            float m1 = M1T[k][i];
             float* r = R[i];
             for(int j = 0; j < c; j++) {
                 r[j] += m1 * m2[j];
@@ -141,6 +204,20 @@ void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
     }
 }
 
+// M1: [a, b] x M2T: [c, b] -> R: [a, c]
+void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c) {
+    #pragma omp parallel for shared(M1,M2T,R)
+    for(int i = 0; i < a; i++) {
+        float* m1 = M1[i];
+        for(int j = 0; j < c; j++) {
+            float* m2 = M2T[j];
+            float* r = &R[i][j];
+            for(int k = 0; k < b; k++) { 
+                *r += m1[k] * m2[k];
+	        }
+	    }
+    }
+}
 
 void print_square(Square s) {
     printf("Matrix of shape %d x %d:\n", s.shape, s.shape);
