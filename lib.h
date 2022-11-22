@@ -33,6 +33,7 @@ typedef struct Data2D {
 typedef struct LinearLayer {
     float** w;  // Matrix of size [out, in] * [in, b] -> [out, b]
     float** dW; // Gradient matrix of size [out, in]
+    Data1D* X;  // Last input passed through this layer
     int in;
     int out;
     float (*activation)(float);
@@ -44,16 +45,17 @@ typedef struct ConvLayer {
     int size;
     Square** w;  // [out, in] kernels of size size*size
     Square** dW; // Gradient matrix of [out, in] kernels of size size*size
+    Data2D* X;   // Last input passed through this layer
 
     float (*activation)(float);
 } ConvLayer;
 
 void convolution(Square X, Square W, Square Y);
 Data2D conv_forward(ConvLayer layer, Data2D inputs);
-BackwardConvResult conv_backward(Square dY, Square X, Square W);
+Data2D conv_backward(ConvLayer layer, Data2D dY);
 
 Data1D linear_forward(LinearLayer layer, Data1D inputs);
-Data1D linear_backward(Data1D dY, Data1D X, LinearLayer layer);
+Data1D linear_backward(LinearLayer layer, Data1D dY);
 
 float ReLU(float val);
 float ReLU_backward(float val);
@@ -63,6 +65,7 @@ Data1D CreateData1D(int features, int batch_size);
 void DestroyData1D(Data1D d);
 Data2D CreateData2D(int size, int batch_size, int channels);
 Data2D CreateData2DZeros(int size, int batch_size, int channels);
+void ClearData2D(Data2D d);
 void DestroyData2D(Data2D d);
 
 Data1D flatten(Data2D d);
