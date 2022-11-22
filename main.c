@@ -13,11 +13,11 @@ int main(int argc,char** argv) {
     int a = 3000;
     int b = 2000;
     int c = 3000;
-    float** M1 = fmatrix_allocate_2d(b, a);
+    float** M1 = fmatrix_allocate_2d(a, b);
     float** M2 = fmatrix_allocate_2d(b, c);
     float** R = fmatrix_allocate_2d(a, c);
 
-    random_init_matrix(M1, b, a);
+    random_init_matrix(M1, a, b);
     random_init_matrix(M2, b, c);
     init_matrix(R, 0.0, a, c);
 
@@ -30,7 +30,7 @@ int main(int argc,char** argv) {
     // start timer. 
     time(&start); 
     
-    //matrix_mul_2d_T1(M1, M2, R, a, b, c);
+    matrix_mul_2d(M1, M2, R, a, b, c);
 
     time(&end); 
     

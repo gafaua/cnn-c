@@ -1,8 +1,6 @@
 #include "lib.h"
 
-// TODO REFACOR THIS WITH DATA2D
-// Basic convolution, stride of 1, no padding (or included in X), only squares
-void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
+void convolution(Square X, Square W, Square Y) {
     #pragma omp parallel for
     for(int i=0; i < Y.size; i++)
         for(int j=0; j < Y.size; j++) {
@@ -10,8 +8,30 @@ void conv_forward(Square X, Square W, Square Y, float (*activation)(float)) {
             for(int k=0; k < W.size; k++)
                 for(int l=0; l < W.size; l++) 
                     sum += W.mat[k][l] * X.mat[k+i][l+j];
-            Y.mat[i][j] = activation(sum);
+            Y.mat[i][j] += sum;
         }
+}
+
+// Basic convolution, stride of 1, no padding (or included in X), only squares
+Data2D conv_forward(ConvLayer layer, Data2D input) {
+    assert(input.c == layer.in && "The input must have the same number of channels as the input channels of this layer");
+
+    int output_size = get_output_size(input.size, layer.size);
+    Data2D output = CreateData2DZeros(output_size, input.b, layer.out);
+    int i,j,k;
+    
+    //#pragma omp parallel for
+    for (i = 0; i < output.b; i++) {
+        Square* in = input.data[i];
+        for (j = 0; j < output.c; j++) {
+            Square* kernels = layer.w[j];
+            Square out = output.data[i][j];
+            for (k = 0; k < input.c; k++)
+                convolution(in[k], kernels[k], out);
+        }
+    }
+
+    return output;
 }
 
 // TODO REFACOR THIS WITH DATA2D
@@ -95,63 +115,89 @@ void DestroyData1D(Data1D d) {
     d.mat = NULL;
 }
 
-// Creates data tensor of shape [batch_size, size, size]
-Data2D CreateData2D(int size, int batch_size) {
+// Creates data tensor of shape [batch_size, channels, size, size]
+Data2D CreateData2D(int size, int batch_size, int channels) {
     Data2D d;
     d.size = size;
     d.b = batch_size;
-    d.data = square_allocate_1d(batch_size);
+    d.c = channels;
+    d.data = square_allocate_2d(batch_size, channels);
     for (int i = 0; i < batch_size; i++)
-        d.data[i] = CreateSquareMatrix(size);
+        for (int j = 0; j < channels; j++)
+            d.data[i][j] = CreateSquareMatrix(size);
+    return d;
+}
+
+// Creates data tensor of shape [batch_size, channels, size, size]
+Data2D CreateData2DZeros(int size, int batch_size, int channels) {
+    Data2D d;
+    d.size = size;
+    d.b = batch_size;
+    d.c = channels;
+    d.data = square_allocate_2d(batch_size, channels);
+    for (int i = 0; i < batch_size; i++)
+        for (int j = 0; j < channels; j++)
+            d.data[i][j] = CreateZerosMatrix(size);
     return d;
 }
 
 void DestroyData2D(Data2D d) {
     for (int i = 0; i < d.b; i++)
-        DestroySquareMatrix(d.data[i]);
+        for (int j = 0; j < d.c; j++)
+            DestroySquareMatrix(d.data[i][j]);
+    free(d.data[0]);
     free(d.data);
     d.data = NULL;
 }
 
-// @param d: Data2D of shape [batch, size, size]
-// @returns d_: Data1D of shape [batch, size*size]
-Data1D squeeze(Data2D d) {
-    Data1D d_ = CreateData1D(d.size*d.size, d.b);
+// @param d: Data2D of shape [batch, channels, size, size]
+// @returns d_: Data1D of shape [batch, channels*size*size]
+Data1D flatten(Data2D d2) {
+    Data1D d1 = CreateData1D(d2.c*d2.size*d2.size, d2.b);
 
     #pragma omp parallel for
-    for (int k = 0; k < d.b; k++) {
-        float** db = d.data[k].mat;
-        float* db_ = d_.mat[k];
-        for (int i = 0; i < d.size; i++) {
-            int vpos = i * d.size;
-            for (int j = 0; j < d.size; j++)
-                db_[vpos + j] = db[i][j];
+    for (int k = 0; k < d2.b; k++) {
+        Square* db2 = d2.data[k];
+        float* db1 = d1.mat[k];
+        for (int l = 0; l < d2.c; l++){
+            float** curr = db2[l].mat;
+            int c_shift = l * d2.size * d2.size;
+            for (int i = 0; i < d2.size; i++) {
+                int vpos = i * d2.size;
+                for (int j = 0; j < d2.size; j++)
+                    db1[c_shift + vpos + j] = curr[i][j];
+            }
         }
     }
 
-    return d_;
+    return d1;
 }
 
 // @param d: Data1D of shape [batch, size]
-// @returns d_: Data2D of shape [batch, sqrt(size), sqrt(size)]
-Data2D unsqueeze(Data1D d) {
-    int size = (int)sqrt((double) d.n);
-    assert(pow((double) size, 2) == (double) d.n && "Can't unsqueeze data with non square number of features");
+// @param channels: number of channels to create in the output tensor
+// @returns d_: Data2D of shape [batch, channels, sqrt(size/channels), sqrt(size/channels)]
+Data2D unflatten(Data1D d1, int channels) {
+    int size = (int)sqrt((double) (d1.n/channels));
+    assert(pow((double) size, 2)*channels == (double) d1.n && "Can't unflatten data with non square number of features with this number of channels");
 
-    Data2D d_ = CreateData2D(size, d.b);
+    Data2D d2 = CreateData2D(size, d1.b, channels);
 
     #pragma omp parallel for
-    for (int k = 0; k < d.b; k++) {
-        float* db = d.mat[k];
-        float** db_ = d_.data[k].mat;
-        for (int i = 0; i < size; i++) {
-            int vpos = i * size;
-            for (int j = 0; j < size; j++)
-                db_[i][j] = db[vpos + j];
+    for (int k = 0; k < d2.b; k++) {
+        Square* db2 = d2.data[k];
+        float* db1 = d1.mat[k];
+        for (int l = 0; l < d2.c; l++){
+            float** curr = db2[l].mat;
+            int c_shift = l * d2.size * d2.size;
+            for (int i = 0; i < d2.size; i++) {
+                int vpos = i * d2.size;
+                for (int j = 0; j < d2.size; j++)
+                    curr[i][j] = db1[c_shift + vpos + j];
+            }
         }
     }
 
-    return d_;
+    return d2;
 }
 
 LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient) {
@@ -172,12 +218,17 @@ void DestroyLinearLayer(LinearLayer layer) {
     layer.dW = NULL;
 }
 
-ConvLayer CreateConvLayer(int in_channels, int out_channels, int size) {
+ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient) {
     ConvLayer c;
-    c.kernels = square_allocate_2d(out_channels, in_channels);
+    c.w = square_allocate_2d(out_channels, in_channels);
+    c.dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
+
     for (int i; i<in_channels; i++) 
-        for (int j; j<out_channels; j++)
-            c.kernels[i][j] = CreateSquareMatrix(size);
+        for (int j; j<out_channels; j++) {
+            c.w[i][j] = CreateSquareMatrix(size);
+            if (with_gradient) c.dW[i][j] = CreateSquareMatrix(size);
+        }
+
     c.in = in_channels;
     c.out = out_channels;
     c.size = size;
@@ -185,11 +236,20 @@ ConvLayer CreateConvLayer(int in_channels, int out_channels, int size) {
 
 void DestroyConvLayer(ConvLayer c) {
     for (int i; i<c.in; i++) 
-        for (int j; j<c.out; j++)
-            DestroySquareMatrix(c.kernels[i][j]);
-    free(c.kernels[0]);
-    free(c.kernels);
-    c.kernels = NULL;
+        for (int j; j<c.out; j++) {
+            DestroySquareMatrix(c.w[i][j]);
+            if (c.dW != NULL) {
+                DestroySquareMatrix(c.dW[i][j]);
+            } 
+        }
+    free(c.w[0]);
+    free(c.w);
+    c.w = NULL;
+    if (c.dW != NULL) {
+        free(c.dW[0]);
+        free(c.dW);
+        c.dW = NULL;
+    }
 }
 
 Square CreateSquareMatrix(int size) {
@@ -258,7 +318,7 @@ void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
 
 // M1T: [b, a] x M2: [b, c] -> R: [a, c]
 void matrix_mul_2d_T1(float** M1T, float** M2, float** R, int a, int b, int c) {
-    #pragma omp parallel for shared(M1T,M2,R)
+    #pragma omp parallel for shared(M1T,M2,R) collapse(2)
     for(int k = 0; k < b; k++) { 
         for(int i = 0; i < a; i++) {
             float* m2 = M2[k];
