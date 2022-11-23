@@ -93,6 +93,8 @@ void matrix_mul_2d_T1(float** M1T, float** M2, float** R, int a, int b, int c);
 void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c);
 
 void print_matrix(float** m, int h, int w);
+void print_data1d(Data1D* d);
+void print_data2d(Data2D* d);
 void print_square(Square s);
 int get_output_size(int input_size, int filter_size);
 

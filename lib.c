@@ -171,7 +171,6 @@ void DestroyData1D(Data1D* d) {
 
     free_fmatrix_2d(d->mat);
     d->mat = NULL;
-    printf("destroyed: %p\n", d->mat);
 }
 
 // Creates data tensor of shape [batch_size, channels, size, size]
@@ -438,6 +437,27 @@ void print_matrix(float** m, int h, int w) {
         printf("\n");
     }
     printf("\n");
+}
+
+void print_data1d(Data1D* d) {
+    printf("Data1D of shape: [%d, %d]\n", d->b, d->n);
+    print_matrix(d->mat, d->b, d->n);
+}
+
+void print_data2d(Data2D* d) {
+    printf("Data2D of shape: [%d, %d, %d, %d]\n", d->b, d->c, d->size, d->size);
+    for (int i=0; i<d->b; i++) {
+        for (int k=0; k<d->size; k++) {
+            for (int j=0; j<d->c; j++) {
+                for (int l=0; l<d->size; l++) {
+                    printf("%.2f ", d->data[i][j].mat[k][l]);
+                }
+                printf(" ");
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
 }
 
 /*----------------------------------------------------------*/
