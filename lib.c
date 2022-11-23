@@ -264,17 +264,28 @@ LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradie
     return l;
 }
 
+void RandomInitLinearLayer(LinearLayer l) {
+    random_init_matrix(l.w, l.out, l.in);
+}
+
 void DestroyLinearLayer(LinearLayer layer) {
     free_fmatrix_2d(layer.w);
     if (layer.dW != NULL) free_fmatrix_2d(layer.dW);
     layer.w = NULL;
     layer.dW = NULL;
+
+    if (layer.X != NULL) {
+        DestroyData1D(*layer.X);
+        free(layer.X);
+        layer.X = NULL;
+    }
 }
 
 ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient) {
     ConvLayer c;
     c.w = square_allocate_2d(out_channels, in_channels);
     c.dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
+    c.X = NULL;
 
     for (int i; i<in_channels; i++) 
         for (int j; j<out_channels; j++) {
@@ -285,6 +296,12 @@ ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_
     c.in = in_channels;
     c.out = out_channels;
     c.size = size;
+}
+
+void RandomInitConvLayer(ConvLayer c) {
+    for (int i; i<c.out; i++) 
+        for (int j; j<c.in; j++) 
+            random_init_matrix(c.w[i][j].mat, c.size, c.size);
 }
 
 void DestroyConvLayer(ConvLayer c) {
@@ -302,6 +319,12 @@ void DestroyConvLayer(ConvLayer c) {
         free(c.dW[0]);
         free(c.dW);
         c.dW = NULL;
+    }
+
+    if (c.X != NULL) {
+        DestroyData2D(*c.X);
+        free(c.X);
+        c.X = NULL;
     }
 }
 

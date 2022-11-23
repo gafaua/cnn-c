@@ -72,6 +72,7 @@ Data1D flatten(Data2D d);
 Data2D unflatten(Data1D d, int channels);
 
 LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient);
+void RandomInitLinearLayer(LinearLayer l);
 void DestroyLinearLayer(LinearLayer layer);
 ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient);
 void DestroyConvLayer(ConvLayer c);
