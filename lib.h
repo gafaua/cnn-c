@@ -60,6 +60,8 @@ float ReLU(float val);
 float ReLU_backward(float val);
 float Identity(float val);
 
+float CrossEntropyForward(Data1D* y_hat, int* y);
+
 Data1D CreateData1D(int features, int batch_size);
 void DestroyData1D(Data1D* d);
 Data2D CreateData2D(int size, int batch_size, int channels);
@@ -95,6 +97,7 @@ void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c);
 void print_matrix(float** m, int h, int w);
 void print_data1d(Data1D* d);
 void print_data2d(Data2D* d);
+void print_conv_layer(ConvLayer* layer);
 void print_square(Square s);
 int get_output_size(int input_size, int filter_size);
 

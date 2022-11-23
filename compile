@@ -1,5 +1,8 @@
 echo
 echo Compiling program main.c
+rm lib.o
+rm main
+
 gcc -fopenmp -c lib.c
 gcc -fopenmp -o main main.c lib.o -lm
 echo Compiling successful

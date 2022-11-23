@@ -155,6 +155,24 @@ float Identity(float val) {
     return val;
 }
 
+// @brief Computes the LogSoftmax of y_hat + Negative LogLikelihood with y
+// @param y_hat: output predictions of size [batch, num_classes]
+// @param y: indices of ground truth values of size [batch]
+float CrossEntropyForward(Data1D* y_hat, int* y) {
+    float loss = 0.0;
+    float sum, pred, tmp;
+    for (int i = 0; i < y_hat->b; i++) {
+        sum = pred = tmp = 0.0;
+        for (int j = 0; j < y_hat->n; j++) {
+            tmp = expf(y_hat->mat[i][j]);
+            sum += tmp;
+            if (j == y[i]) pred = tmp;
+        }
+        loss -= logf(pred/sum);
+    }
+    return loss / y_hat->b;
+}
+
 // Creates data tensor of shape [batch_size, features]
 Data1D CreateData1D(int features, int batch_size) {
     Data1D d;
@@ -296,26 +314,35 @@ ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_
     c.dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
     c.X.data = NULL;
 
-    for (int i; i<in_channels; i++) 
-        for (int j; j<out_channels; j++) {
-            c.w[i][j] = CreateSquareMatrix(size);
-            if (with_gradient) c.dW[i][j] = CreateSquareMatrix(size);
+    for (int i=0; i<out_channels; i++) 
+        for (int j=0; j<in_channels; j++) {
+            c.w[i][j].mat = fmatrix_allocate_2d(size, size);
+            c.w[i][j].size = size;
+            if (with_gradient) {
+                c.dW[i][j].mat = fmatrix_allocate_2d(size, size);
+                c.dW[i][j].size = size;
+            }
         }
 
     c.in = in_channels;
     c.out = out_channels;
     c.size = size;
+
+    return c;
 }
 
 void RandomInitConvLayer(ConvLayer* c) {
-    for (int i; i<c->out; i++)
-        for (int j; j<c->in; j++)
-            random_init_matrix(c->w[i][j].mat, c->size, c->size);
+    int size = c->size;
+    for (int i=0; i < c->out; i++) {
+        for (int j=0; j < c->in; j++) {
+            random_init_matrix(c->w[i][j].mat, size, size);
+        }
+    }
 }
 
 void DestroyConvLayer(ConvLayer* c) {
-    for (int i; i<c->in; i++) 
-        for (int j; j<c->out; j++) {
+    for (int i=0; i<c->in; i++) 
+        for (int j=0; j<c->out; j++) {
             DestroySquareMatrix(c->w[i][j]);
             if (c->dW != NULL) {
                 DestroySquareMatrix(c->dW[i][j]);
@@ -372,11 +399,12 @@ void init_matrix(float** m, float val, int h, int w) {
             m[i][j] = val;
 }
 
-// Initialize matrix with weight in range [0, 1]
+// Initialize matrix with weight in range [-0.5,0.5]
 void random_init_matrix(float** m, int h, int w) {
     for (int i = 0; i < h; i++)
-        for (int j = 0; j < w; j++)
-            m[i][j] = (float)rand()/(float)RAND_MAX;
+        for (int j = 0; j < w; j++) {
+            m[i][j] = (float)(rand())/(float)RAND_MAX;
+        }
 }
 
 // TODO test speed, try to transpose M2
@@ -458,6 +486,10 @@ void print_data2d(Data2D* d) {
         }
         printf("\n");
     }
+}
+
+void print_conv_layer(ConvLayer* layer) {
+    printf("ConvLayer of size [%d, %d] for kernels of size %d\n", layer->out, layer->in, layer->size);
 }
 
 /*----------------------------------------------------------*/

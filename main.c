@@ -15,27 +15,20 @@ int main(int argc,char** argv) {
 
     time_t start, end; 
 
-    int b = 2;
-    int n = 10;
-    Data1D d = CreateData1D(n, b);
-    init_matrix(d.mat, 1.0, b, n);
-    d.mat[0][0] = 0.0;
-    LinearLayer l1 = CreateLinearLayer(n, 18, TRUE);
-
-    RandomInitLinearLayer(&l1);
+    int b = 1;
+    int n = 5;
 
     printf("Init done, starting processing\n");
     // start timer. 
     time(&start); 
 
-    Data1D d2 = linear_forward(&l1, &d);
-    print_data1d(&d2);
+    int gt[2] = {4, 2};
+    Data1D d = CreateData1D(n, b);
+    random_init_matrix(d.mat, b, n);
 
-    Data2D d3 = unflatten(d2, 2);
-    print_data2d(&d3);
-
-    Data1D d4 = flatten(d3);
-    print_data1d(&d4);
+    float loss = CrossEntropyForward(&d, (int *)&gt);
+    print_data1d(&d);
+    printf("Loss: %f\n", loss);
 
     time(&end);
 
@@ -48,8 +41,6 @@ int main(int argc,char** argv) {
     printf("Clearing memory...\n");
 
     DestroyData1D(&d);
-    DestroyLinearLayer(&l1);
-    DestroyData1D(&d2);
 
     printf("Done.\n");
 }
