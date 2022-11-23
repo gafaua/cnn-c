@@ -30,29 +30,32 @@ void deconvolution(Square dY, Square X, Square dX, Square W, Square dW) {
 // @param layer: Convolutionnal layer, weights of dim [out_channels, in_channels, k_size, k_size]
 // @param input: Data2D, dim [batch, in_channels, size, size]
 // @returns Data2D, dim [batch, out_channels, size, size]
-Data2D conv_forward(ConvLayer layer, Data2D input) {
-    assert(input.c == layer.in && "The input must have the same number of channels as the input channels of this layer");
+Data2D conv_forward(ConvLayer* layer, Data2D* input) {
+    assert(input->c == layer->in && "The input must have the same number of channels as the input channels of this layer");
 
-    if (layer.dW != NULL) {
-        // Save inputs in layer.X
-        if (layer.X != NULL) {
-            DestroyData2D(*layer.X);
+    if (layer->dW != NULL) {
+        // Save inputs in layer->X
+        if (layer->X.data != NULL) {
+            DestroyData2D(&layer->X);
         }
 
-        layer.X = &input;
+        layer->X.b = input->b;
+        layer->X.c = input->c;
+        layer->X.size = input->size;
+        layer->X.data = input->data;
     }
 
-    int output_size = get_output_size(input.size, layer.size);
-    Data2D output = CreateData2DZeros(output_size, input.b, layer.out);
+    int output_size = get_output_size(input->size, layer->size);
+    Data2D output = CreateData2DZeros(output_size, input->b, layer->out);
     int i,j,k;
 
     //#pragma omp parallel for
     for (i = 0; i < output.b; i++) {
-        Square* in = input.data[i];
+        Square* in = input->data[i];
         for (j = 0; j < output.c; j++) {
-            Square* kernels = layer.w[j];
+            Square* kernels = layer->w[j];
             Square out = output.data[i][j];
-            for (k = 0; k < input.c; k++)
+            for (k = 0; k < input->c; k++)
                 convolution(in[k], kernels[k], out);
         }
     }
@@ -64,28 +67,30 @@ Data2D conv_forward(ConvLayer layer, Data2D input) {
 // @param dY: Data2D, dim [batch, out_channels, size, size]
 // @param X: Data2D, dim [batch, in_channels, size, size]
 // @param layer: Convolutionnal layer, weights of dim [out_channels, in_channels, k_size, k_size]
-// @returns Data2D, dim [batch, in_channels, size, size]
-Data2D conv_backward(ConvLayer layer, Data2D dY) {
-    assert(layer.dW != NULL && "This convolutional layer wasn't initialized with the with_gradient flag");
-    assert(layer.out == dY.c && "The gradient from the next layer doesn't have the same number of channels as the output channels of this convolutional layer");
-    assert(layer.in == layer.X->c && "The input tensor given doesn't have the same number of channels as the input channels of this convolutional layer");
+// @returns dX: Data2D, dim [batch, in_channels, size, size]
+// @returns layer.dW: dim [out_channels, in_channels, k_size, k_size]
+Data2D conv_backward(ConvLayer* layer, Data2D* dY) {
+    assert(layer->dW != NULL && "This convolutional layer wasn't initialized with the with_gradient flag");
+    assert(layer->out == dY->c && "The gradient from the next layer doesn't have the same number of channels as the output channels of this convolutional layer");
+    assert(layer->in == layer->X.c && "The input tensor given doesn't have the same number of channels as the input channels of this convolutional layer");
 
     int i,j,k;
 
     // Clear gradients
-    Data2D dX = CreateData2DZeros(layer.X->size, layer.X->b, layer.X->c);
-    for (i = 0; i < layer.out; i++)
-        for (j = 0; j < layer.in; j++)
-            init_square(layer.dW[i][j], 0.0);
+    Data2D dX = CreateData2DZeros(layer->X.size, layer->X.b, layer->X.c);
+    for (i = 0; i < layer->out; i++)
+        for (j = 0; j < layer->in; j++)
+            init_square(layer->dW[i][j], 0.0);
 
-    for (k = 0; k < layer.X->b; k++) {
-        Square* dYb = dY.data[k];
-        Square* Xb = layer.X->data[k];
+    // Compute new gradients
+    for (k = 0; k < layer->X.b; k++) {
+        Square* dYb = dY->data[k];
+        Square* Xb = layer->X.data[k];
         Square* dXb = dX.data[k];
-        for (i = 0; i < layer.out; i++) {
-            Square* kernels = layer.w[i];
-            Square* dWOut = layer.dW[i];
-            for (j = 0; j < layer.in; j++) {
+        for (i = 0; i < layer->out; i++) {
+            Square* kernels = layer->w[i];
+            Square* dWOut = layer->dW[i];
+            for (j = 0; j < layer->in; j++) {
                 deconvolution(dYb[i], Xb[j], dXb[j], kernels[j], dWOut[j]);
             }
         }
@@ -97,19 +102,22 @@ Data2D conv_backward(ConvLayer layer, Data2D dY) {
     @param layer.w: [output_features, input_features] 
     @param inputs: [batch_size, input_features]
     @returns outputs: [batch_size, output_features] */
-Data1D linear_forward(LinearLayer layer, Data1D input) {
-    assert(layer.in == input.n && "Invalid size of input data for linear layer");
+Data1D linear_forward(LinearLayer* layer, Data1D* input) {
+    assert(layer->in == input->n && "Invalid size of input data for linear layer");
     
-    if (layer.dW != NULL) {
+    if (layer->dW != NULL) {
         // Save inputs in layer.X
-        if (layer.X != NULL) {
-            DestroyData1D(*layer.X);
+        if (layer->X.mat != NULL) {
+            DestroyData1D(&layer->X);
         }
-        layer.X = &input;
+
+        layer->X.b = input->b;
+        layer->X.n = input->n;
+        layer->X.mat = input->mat;
     }
 
-    Data1D outputs = CreateData1D(layer.out, input.b);
-    matrix_mul_2d_T2(input.mat, layer.w, outputs.mat, input.b, layer.in, layer.out);
+    Data1D outputs = CreateData1D(layer->out, input->b);
+    matrix_mul_2d_T2(input->mat, layer->w, outputs.mat, input->b, layer->in, layer->out);
     return outputs;
 }
 
@@ -118,18 +126,18 @@ Data1D linear_forward(LinearLayer layer, Data1D input) {
 // @param layer.w: [output_features, input_features]
 // @returns dX: [batch_size, input_features]
 // @returns layer.dW: [output_features, input_features]
-Data1D linear_backward(LinearLayer layer, Data1D dY) {
-    assert(layer.dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
-    assert(dY.n == layer.out && "The gradient from the next layer has not the same number of features than this layer");
-    assert(dY.b == layer.X->b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
+Data1D linear_backward(LinearLayer* layer, Data1D* dY) {
+    assert(layer->dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
+    assert(dY->n == layer->out && "The gradient from the next layer has not the same number of features than this layer");
+    assert(dY->b == layer->X.b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
 
-    Data1D dX = CreateData1D(layer.X->n, layer.X->b);
+    Data1D dX = CreateData1D(layer->X.n, layer->X.b);
     init_matrix(dX.mat, 0.0, dX.b, dX.n);
-    init_matrix(layer.dW, 0.0, layer.out, layer.in);
+    init_matrix(layer->dW, 0.0, layer->out, layer->in);
     // dX = dY * layer.w
-    matrix_mul_2d(dY.mat, layer.w, dX.mat, dX.b, layer.out, dX.n);
+    matrix_mul_2d(dY->mat, layer->w, dX.mat, dX.b, layer->out, dX.n);
     // dW = dY.T * X
-    matrix_mul_2d_T1(dY.mat, layer.X->mat, layer.dW, layer.out, dY.b, layer.in);
+    matrix_mul_2d_T1(dY->mat, layer->X.mat, layer->dW, layer->out, dY->b, layer->in);
     return dX;
 }
 
@@ -156,9 +164,14 @@ Data1D CreateData1D(int features, int batch_size) {
     return d;
 }
 
-void DestroyData1D(Data1D d) {
-    free_fmatrix_2d(d.mat);
-    d.mat = NULL;
+void DestroyData1D(Data1D* d) {
+    if (d->mat == NULL) {
+        return;
+    }
+
+    free_fmatrix_2d(d->mat);
+    d->mat = NULL;
+    printf("destroyed: %p\n", d->mat);
 }
 
 // Creates data tensor of shape [batch_size, channels, size, size]
@@ -187,19 +200,22 @@ Data2D CreateData2DZeros(int size, int batch_size, int channels) {
     return d;
 }
 
-void ClearData2D(Data2D d) {
-    for (int i = 0; i < d.b; i++)
-        for (int j = 0; j < d.c; j++)
-            init_square(d.data[i][j], 0.0);
+void ClearData2D(Data2D* d) {
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->c; j++)
+            init_square(d->data[i][j], 0.0);
 }
 
-void DestroyData2D(Data2D d) {
-    for (int i = 0; i < d.b; i++)
-        for (int j = 0; j < d.c; j++)
-            DestroySquareMatrix(d.data[i][j]);
-    free(d.data[0]);
-    free(d.data);
-    d.data = NULL;
+void DestroyData2D(Data2D* d) {
+    if (d->data == NULL) {
+        return;
+    }
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->c; j++)
+            DestroySquareMatrix(d->data[i][j]);
+    free(d->data[0]);
+    free(d->data);
+    d->data = NULL;
 }
 
 // @param d: Data2D of shape [batch, channels, size, size]
@@ -259,33 +275,27 @@ LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradie
     l.out = out_channels;
 
     l.dW = with_gradient ? fmatrix_allocate_2d(out_channels, in_channels) : NULL;
-    l.X = NULL;
- 
+    l.X.mat = NULL;
+
     return l;
 }
 
-void RandomInitLinearLayer(LinearLayer l) {
-    random_init_matrix(l.w, l.out, l.in);
+void RandomInitLinearLayer(LinearLayer* l) {
+    random_init_matrix(l->w, l->out, l->in);
 }
 
-void DestroyLinearLayer(LinearLayer layer) {
-    free_fmatrix_2d(layer.w);
-    if (layer.dW != NULL) free_fmatrix_2d(layer.dW);
-    layer.w = NULL;
-    layer.dW = NULL;
-
-    if (layer.X != NULL) {
-        DestroyData1D(*layer.X);
-        free(layer.X);
-        layer.X = NULL;
-    }
+void DestroyLinearLayer(LinearLayer* layer) {
+    free_fmatrix_2d(layer->w);
+    if (layer->dW != NULL) free_fmatrix_2d(layer->dW);
+    layer->w = NULL;
+    layer->dW = NULL;
 }
 
 ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient) {
     ConvLayer c;
     c.w = square_allocate_2d(out_channels, in_channels);
     c.dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
-    c.X = NULL;
+    c.X.data = NULL;
 
     for (int i; i<in_channels; i++) 
         for (int j; j<out_channels; j++) {
@@ -298,33 +308,27 @@ ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_
     c.size = size;
 }
 
-void RandomInitConvLayer(ConvLayer c) {
-    for (int i; i<c.out; i++) 
-        for (int j; j<c.in; j++) 
-            random_init_matrix(c.w[i][j].mat, c.size, c.size);
+void RandomInitConvLayer(ConvLayer* c) {
+    for (int i; i<c->out; i++)
+        for (int j; j<c->in; j++)
+            random_init_matrix(c->w[i][j].mat, c->size, c->size);
 }
 
-void DestroyConvLayer(ConvLayer c) {
-    for (int i; i<c.in; i++) 
-        for (int j; j<c.out; j++) {
-            DestroySquareMatrix(c.w[i][j]);
-            if (c.dW != NULL) {
-                DestroySquareMatrix(c.dW[i][j]);
+void DestroyConvLayer(ConvLayer* c) {
+    for (int i; i<c->in; i++) 
+        for (int j; j<c->out; j++) {
+            DestroySquareMatrix(c->w[i][j]);
+            if (c->dW != NULL) {
+                DestroySquareMatrix(c->dW[i][j]);
             } 
         }
-    free(c.w[0]);
-    free(c.w);
-    c.w = NULL;
-    if (c.dW != NULL) {
-        free(c.dW[0]);
-        free(c.dW);
-        c.dW = NULL;
-    }
-
-    if (c.X != NULL) {
-        DestroyData2D(*c.X);
-        free(c.X);
-        c.X = NULL;
+    free(c->w[0]);
+    free(c->w);
+    c->w = NULL;
+    if (c->dW != NULL) {
+        free(c->dW[0]);
+        free(c->dW);
+        c->dW = NULL;
     }
 }
 
