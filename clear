@@ -1,5 +1,0 @@
-echo "Clearing files"
-echo
-
-rm lib.o
-rm main
