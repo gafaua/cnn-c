@@ -8,10 +8,10 @@ SRCDIR=src
 
 LIBS=-lm
 
-_DEPS = lib.h
+_DEPS = lib.h tests.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = lib.o
+_OBJ = lib.o tests.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)

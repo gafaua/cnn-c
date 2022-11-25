@@ -1,5 +1,38 @@
 #include "lib.h"
 
+DataType* network_forward(LayerNode* node, DataType* data) {
+    DataType* output;
+    switch (node->type)
+    {
+    case Linear:
+        assert(*data == D1D && "The input of a Linear Layer must be a Data1D");
+        output = (DataType*) linear_forward((LinearLayer*) node, (Data1D*) data);
+        break;
+    case Conv:
+        assert(*data == D2D && "The input of a Conv Layer must be a Data2D");
+        output = (DataType*) conv_forward((ConvLayer*) node, (Data2D*) data);
+        break;
+    case Flatten:
+        assert(*data == D2D && "The input of a Flatten Layer must be a Data2D");
+        output = (DataType*) flatten((Data2D*) data);
+        break;
+    case Unflatten:
+        assert(*data == D1D && "The input of an Unflatten Layer must be a Data1D");
+        assert(node->next != NULL && node->next->type == Conv &&"An Unflatten Layer must lead to a Conv Layer");
+        int channels = ((ConvLayer*) node->next)->in;
+        output = (DataType*) unflatten((Data1D*) data, channels);
+        break;
+    default:
+        break;
+    }
+    
+    if (node->next != NULL) {
+        return network_forward(node->next, output);
+    }
+
+    return output;
+}
+
 // Y must be 0 init
 void convolution(Square X, Square W, Square Y) {
     #pragma omp parallel for
@@ -30,7 +63,7 @@ void deconvolution(Square dY, Square X, Square dX, Square W, Square dW) {
 // @param layer: Convolutionnal layer, weights of dim [out_channels, in_channels, k_size, k_size]
 // @param input: Data2D, dim [batch, in_channels, size, size]
 // @returns Data2D, dim [batch, out_channels, size, size]
-Data2D conv_forward(ConvLayer* layer, Data2D* input) {
+Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
     assert(input->c == layer->in && "The input must have the same number of channels as the input channels of this layer");
 
     if (layer->dW != NULL) {
@@ -46,15 +79,15 @@ Data2D conv_forward(ConvLayer* layer, Data2D* input) {
     }
 
     int output_size = get_output_size(input->size, layer->size);
-    Data2D output = CreateData2DZeros(output_size, input->b, layer->out);
+    Data2D* output = CreateData2DZeros(output_size, input->b, layer->out);
     int i,j,k;
 
     //#pragma omp parallel for
-    for (i = 0; i < output.b; i++) {
+    for (i = 0; i < output->b; i++) {
         Square* in = input->data[i];
-        for (j = 0; j < output.c; j++) {
+        for (j = 0; j < output->c; j++) {
             Square* kernels = layer->w[j];
-            Square out = output.data[i][j];
+            Square out = output->data[i][j];
             for (k = 0; k < input->c; k++)
                 convolution(in[k], kernels[k], out);
         }
@@ -69,7 +102,7 @@ Data2D conv_forward(ConvLayer* layer, Data2D* input) {
 // @param layer: Convolutionnal layer, weights of dim [out_channels, in_channels, k_size, k_size]
 // @returns dX: Data2D, dim [batch, in_channels, size, size]
 // @returns layer.dW: dim [out_channels, in_channels, k_size, k_size]
-Data2D conv_backward(ConvLayer* layer, Data2D* dY) {
+Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
     assert(layer->dW != NULL && "This convolutional layer wasn't initialized with the with_gradient flag");
     assert(layer->out == dY->c && "The gradient from the next layer doesn't have the same number of channels as the output channels of this convolutional layer");
     assert(layer->in == layer->X.c && "The input tensor given doesn't have the same number of channels as the input channels of this convolutional layer");
@@ -77,7 +110,7 @@ Data2D conv_backward(ConvLayer* layer, Data2D* dY) {
     int i,j,k;
 
     // Clear gradients
-    Data2D dX = CreateData2DZeros(layer->X.size, layer->X.b, layer->X.c);
+    Data2D* dX = CreateData2DZeros(layer->X.size, layer->X.b, layer->X.c);
     for (i = 0; i < layer->out; i++)
         for (j = 0; j < layer->in; j++)
             init_square(layer->dW[i][j], 0.0);
@@ -86,7 +119,7 @@ Data2D conv_backward(ConvLayer* layer, Data2D* dY) {
     for (k = 0; k < layer->X.b; k++) {
         Square* dYb = dY->data[k];
         Square* Xb = layer->X.data[k];
-        Square* dXb = dX.data[k];
+        Square* dXb = dX->data[k];
         for (i = 0; i < layer->out; i++) {
             Square* kernels = layer->w[i];
             Square* dWOut = layer->dW[i];
@@ -102,7 +135,7 @@ Data2D conv_backward(ConvLayer* layer, Data2D* dY) {
     @param layer.w: [output_features, input_features] 
     @param inputs: [batch_size, input_features]
     @returns outputs: [batch_size, output_features] */
-Data1D linear_forward(LinearLayer* layer, Data1D* input) {
+Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
     assert(layer->in == input->n && "Invalid size of input data for linear layer");
     
     if (layer->dW != NULL) {
@@ -116,8 +149,8 @@ Data1D linear_forward(LinearLayer* layer, Data1D* input) {
         layer->X.mat = input->mat;
     }
 
-    Data1D outputs = CreateData1D(layer->out, input->b);
-    matrix_mul_2d_T2(input->mat, layer->w, outputs.mat, input->b, layer->in, layer->out);
+    Data1D* outputs = CreateData1D(layer->out, input->b);
+    matrix_mul_2d_T2(input->mat, layer->w, outputs->mat, input->b, layer->in, layer->out);
     return outputs;
 }
 
@@ -126,16 +159,16 @@ Data1D linear_forward(LinearLayer* layer, Data1D* input) {
 // @param layer.w: [output_features, input_features]
 // @returns dX: [batch_size, input_features]
 // @returns layer.dW: [output_features, input_features]
-Data1D linear_backward(LinearLayer* layer, Data1D* dY) {
+Data1D* linear_backward(LinearLayer* layer, Data1D* dY) {
     assert(layer->dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
     assert(dY->n == layer->out && "The gradient from the next layer has not the same number of features than this layer");
     assert(dY->b == layer->X.b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
 
-    Data1D dX = CreateData1D(layer->X.n, layer->X.b);
-    init_matrix(dX.mat, 0.0, dX.b, dX.n);
+    Data1D* dX = CreateData1D(layer->X.n, layer->X.b);
+    init_matrix(dX->mat, 0.0, dX->b, dX->n);
     init_matrix(layer->dW, 0.0, layer->out, layer->in);
     // dX = dY * layer.w
-    matrix_mul_2d(dY->mat, layer->w, dX.mat, dX.b, layer->out, dX.n);
+    matrix_mul_2d(dY->mat, layer->w, dX->mat, dX->b, layer->out, dX->n);
     // dW = dY.T * X
     matrix_mul_2d_T1(dY->mat, layer->X.mat, layer->dW, layer->out, dY->b, layer->in);
     return dX;
@@ -174,11 +207,12 @@ float CrossEntropyForward(Data1D* y_hat, int* y) {
 }
 
 // Creates data tensor of shape [batch_size, features]
-Data1D CreateData1D(int features, int batch_size) {
-    Data1D d;
-    d.n = features;
-    d.b = batch_size;
-    d.mat = fmatrix_allocate_2d(batch_size, features);
+Data1D* CreateData1D(int features, int batch_size) {
+    Data1D* d = (Data1D*) malloc(sizeof(Data1D));
+    d->n = features;
+    d->b = batch_size;
+    d->mat = fmatrix_allocate_2d(batch_size, features);
+    d->type = D1D;
     return d;
 }
 
@@ -189,32 +223,41 @@ void DestroyData1D(Data1D* d) {
 
     free_fmatrix_2d(d->mat);
     d->mat = NULL;
+    free(d);
 }
 
 // Creates data tensor of shape [batch_size, channels, size, size]
-Data2D CreateData2D(int size, int batch_size, int channels) {
-    Data2D d;
-    d.size = size;
-    d.b = batch_size;
-    d.c = channels;
-    d.data = square_allocate_2d(batch_size, channels);
+Data2D* CreateData2D(int size, int batch_size, int channels) {
+    Data2D* d = (Data2D*) malloc(sizeof(Data2D));
+    d->size = size;
+    d->b = batch_size;
+    d->c = channels;
+    d->data = square_allocate_2d(batch_size, channels);
+    d->type = D2D;
     for (int i = 0; i < batch_size; i++)
         for (int j = 0; j < channels; j++)
-            d.data[i][j] = CreateSquareMatrix(size);
+            d->data[i][j] = CreateSquareMatrix(size);
     return d;
 }
 
 // Creates data tensor of shape [batch_size, channels, size, size]
-Data2D CreateData2DZeros(int size, int batch_size, int channels) {
-    Data2D d;
-    d.size = size;
-    d.b = batch_size;
-    d.c = channels;
-    d.data = square_allocate_2d(batch_size, channels);
+Data2D* CreateData2DZeros(int size, int batch_size, int channels) {
+    Data2D* d = (Data2D*) malloc(sizeof(Data2D));
+    d->size = size;
+    d->b = batch_size;
+    d->c = channels;
+    d->data = square_allocate_2d(batch_size, channels);
+    d->type = D2D;
     for (int i = 0; i < batch_size; i++)
         for (int j = 0; j < channels; j++)
-            d.data[i][j] = CreateZerosMatrix(size);
+            d->data[i][j] = CreateZerosMatrix(size);
     return d;
+}
+
+void RandomInitData2D(Data2D* d) {
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->c; j++)
+            random_init_matrix(d->data[i][j].mat, d->size, d->size);
 }
 
 void ClearData2D(Data2D* d) {
@@ -237,19 +280,19 @@ void DestroyData2D(Data2D* d) {
 
 // @param d: Data2D of shape [batch, channels, size, size]
 // @returns d_: Data1D of shape [batch, channels*size*size]
-Data1D flatten(Data2D d2) {
-    Data1D d1 = CreateData1D(d2.c*d2.size*d2.size, d2.b);
+Data1D* flatten(Data2D* d2) {
+    Data1D* d1 = CreateData1D(d2->c*d2->size*d2->size, d2->b);
 
     #pragma omp parallel for
-    for (int k = 0; k < d2.b; k++) {
-        Square* db2 = d2.data[k];
-        float* db1 = d1.mat[k];
-        for (int l = 0; l < d2.c; l++){
+    for (int k = 0; k < d2->b; k++) {
+        Square* db2 = d2->data[k];
+        float* db1 = d1->mat[k];
+        for (int l = 0; l < d2->c; l++){
             float** curr = db2[l].mat;
-            int c_shift = l * d2.size * d2.size;
-            for (int i = 0; i < d2.size; i++) {
-                int vpos = i * d2.size;
-                for (int j = 0; j < d2.size; j++)
+            int c_shift = l * d2->size * d2->size;
+            for (int i = 0; i < d2->size; i++) {
+                int vpos = i * d2->size;
+                for (int j = 0; j < d2->size; j++)
                     db1[c_shift + vpos + j] = curr[i][j];
             }
         }
@@ -261,22 +304,22 @@ Data1D flatten(Data2D d2) {
 // @param d: Data1D of shape [batch, size]
 // @param channels: number of channels to create in the output tensor
 // @returns d_: Data2D of shape [batch, channels, sqrt(size/channels), sqrt(size/channels)]
-Data2D unflatten(Data1D d1, int channels) {
-    int size = (int)sqrt((double) (d1.n/channels));
-    assert(pow((double) size, 2)*channels == (double) d1.n && "Can't unflatten data with non square number of features with this number of channels");
+Data2D* unflatten(Data1D* d1, int channels) {
+    int size = (int)sqrt((double) (d1->n/channels));
+    assert(pow((double) size, 2)*channels == (double) d1->n && "Can't unflatten data with non square number of features with this number of channels");
 
-    Data2D d2 = CreateData2D(size, d1.b, channels);
+    Data2D* d2 = CreateData2D(size, d1->b, channels);
 
     #pragma omp parallel for
-    for (int k = 0; k < d2.b; k++) {
-        Square* db2 = d2.data[k];
-        float* db1 = d1.mat[k];
-        for (int l = 0; l < d2.c; l++){
+    for (int k = 0; k < d2->b; k++) {
+        Square* db2 = d2->data[k];
+        float* db1 = d1->mat[k];
+        for (int l = 0; l < d2->c; l++){
             float** curr = db2[l].mat;
-            int c_shift = l * d2.size * d2.size;
-            for (int i = 0; i < d2.size; i++) {
-                int vpos = i * d2.size;
-                for (int j = 0; j < d2.size; j++)
+            int c_shift = l * d2->size * d2->size;
+            for (int i = 0; i < d2->size; i++) {
+                int vpos = i * d2->size;
+                for (int j = 0; j < d2->size; j++)
                     curr[i][j] = db1[c_shift + vpos + j];
             }
         }
@@ -285,14 +328,22 @@ Data2D unflatten(Data1D d1, int channels) {
     return d2;
 }
 
-LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient) {
-    LinearLayer l;
-    l.w = fmatrix_allocate_2d(out_channels, in_channels);
-    l.in = in_channels;
-    l.out = out_channels;
+LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random) {
+    LinearLayer* l = (LinearLayer*) malloc(sizeof(LinearLayer));
+    l->w = fmatrix_allocate_2d(out, in);
+    l->in = in;
+    l->out = out;
 
-    l.dW = with_gradient ? fmatrix_allocate_2d(out_channels, in_channels) : NULL;
-    l.X.mat = NULL;
+    l->dW = with_gradient ? fmatrix_allocate_2d(out, in) : NULL;
+    l->X.mat = NULL;
+
+    l->node.next = NULL;
+    l->node.previous = NULL;
+    l->node.type = Linear;
+
+    if (random) {
+        RandomInitLinearLayer(l);
+    }
 
     return l;
 }
@@ -306,27 +357,36 @@ void DestroyLinearLayer(LinearLayer* layer) {
     if (layer->dW != NULL) free_fmatrix_2d(layer->dW);
     layer->w = NULL;
     layer->dW = NULL;
+    free(layer);
 }
 
-ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient) {
-    ConvLayer c;
-    c.w = square_allocate_2d(out_channels, in_channels);
-    c.dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
-    c.X.data = NULL;
+ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient, int random) {
+    ConvLayer* c = (ConvLayer*) malloc(sizeof(ConvLayer));
+    c->w = square_allocate_2d(out_channels, in_channels);
+    c->dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
+    c->X.data = NULL;
 
     for (int i=0; i<out_channels; i++) 
         for (int j=0; j<in_channels; j++) {
-            c.w[i][j].mat = fmatrix_allocate_2d(size, size);
-            c.w[i][j].size = size;
+            c->w[i][j].mat = fmatrix_allocate_2d(size, size);
+            c->w[i][j].size = size;
             if (with_gradient) {
-                c.dW[i][j].mat = fmatrix_allocate_2d(size, size);
-                c.dW[i][j].size = size;
+                c->dW[i][j].mat = fmatrix_allocate_2d(size, size);
+                c->dW[i][j].size = size;
             }
         }
 
-    c.in = in_channels;
-    c.out = out_channels;
-    c.size = size;
+    c->in = in_channels;
+    c->out = out_channels;
+    c->size = size;
+
+    c->node.next = NULL;
+    c->node.previous = NULL;
+    c->node.type = Conv;
+
+    if (random) {
+        RandomInitConvLayer(c);
+    }
 
     return c;
 }
@@ -341,8 +401,8 @@ void RandomInitConvLayer(ConvLayer* c) {
 }
 
 void DestroyConvLayer(ConvLayer* c) {
-    for (int i=0; i<c->in; i++) 
-        for (int j=0; j<c->out; j++) {
+    for (int i=0; i<c->out; i++) 
+        for (int j=0; j<c->in; j++) {
             DestroySquareMatrix(c->w[i][j]);
             if (c->dW != NULL) {
                 DestroySquareMatrix(c->dW[i][j]);
@@ -356,6 +416,7 @@ void DestroyConvLayer(ConvLayer* c) {
         free(c->dW);
         c->dW = NULL;
     }
+    free(c);
 }
 
 Square CreateSquareMatrix(int size) {
@@ -403,7 +464,7 @@ void init_matrix(float** m, float val, int h, int w) {
 void random_init_matrix(float** m, int h, int w) {
     for (int i = 0; i < h; i++)
         for (int j = 0; j < w; j++) {
-            m[i][j] = (float)(rand())/(float)RAND_MAX;
+            m[i][j] = (float)(rand() - RAND_MAX/2)/(float)RAND_MAX;
         }
 }
 

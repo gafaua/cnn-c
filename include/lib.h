@@ -7,6 +7,23 @@
 #include <string.h>
 #include <assert.h>
 
+#define TRUE 1
+#define FALSE 0
+
+typedef enum {
+    None,
+    Linear,
+    Conv,
+    MaxPool,
+    Flatten,
+    Unflatten,
+} NodeType;
+
+typedef enum {
+    D1D=1,
+    D2D=2,
+} DataType;
+
 typedef struct SquareMatrix {
     float** mat;
     int size;
@@ -18,28 +35,40 @@ typedef struct BackwardMatrices {
 } BackwardConvResult;
 
 typedef struct Data1D {
+    DataType type;
     float** mat; // Matrix of size [b, n]
     int n;
     int b;
 } Data1D;
 
 typedef struct Data2D {
+    DataType type;
     Square** data; // Equivalent of a tensor of size [b, c, size, size]
     int size;
     int c;
     int b;
 } Data2D;
 
+typedef struct LayerNode {
+    struct LayerNode* previous;
+    struct LayerNode* next;
+    NodeType type;
+
+} LayerNode;
+
 typedef struct LinearLayer {
+    LayerNode node;
     float** w;  // Matrix of size [out, in] * [in, b] -> [out, b]
     float** dW; // Gradient matrix of size [out, in]
     Data1D X;  // Last input passed through this layer
     int in;
     int out;
+
     float (*activation)(float);
 } LinearLayer;
 
 typedef struct ConvLayer {
+    LayerNode node;
     int in;
     int out;
     int size;
@@ -50,11 +79,15 @@ typedef struct ConvLayer {
     float (*activation)(float);
 } ConvLayer;
 
-Data2D conv_forward(ConvLayer* layer, Data2D* input);
-Data2D conv_backward(ConvLayer* layer, Data2D* dY);
+DataType* network_forward(LayerNode* node, DataType* data);
+DataType* network_backward(LayerNode* node, DataType* data);
+void DestroyNetwork(LayerNode* node);
 
-Data1D linear_forward(LinearLayer* layer, Data1D* input);
-Data1D linear_backward(LinearLayer* layer, Data1D* dY);
+Data2D* conv_forward(ConvLayer* layer, Data2D* input);
+Data2D* conv_backward(ConvLayer* layer, Data2D* dY);
+
+Data1D* linear_forward(LinearLayer* layer, Data1D* input);
+Data1D* linear_backward(LinearLayer* layer, Data1D* dY);
 
 float ReLU(float val);
 float ReLU_backward(float val);
@@ -62,20 +95,21 @@ float Identity(float val);
 
 float CrossEntropyForward(Data1D* y_hat, int* y);
 
-Data1D CreateData1D(int features, int batch_size);
+Data1D* CreateData1D(int features, int batch_size);
 void DestroyData1D(Data1D* d);
-Data2D CreateData2D(int size, int batch_size, int channels);
-Data2D CreateData2DZeros(int size, int batch_size, int channels);
+Data2D* CreateData2D(int size, int batch_size, int channels);
+void RandomInitData2D(Data2D* d);
+Data2D* CreateData2DZeros(int size, int batch_size, int channels);
 void ClearData2D(Data2D* d);
 void DestroyData2D(Data2D* d);
 
-Data1D flatten(Data2D d);
-Data2D unflatten(Data1D d, int channels);
+Data1D* flatten(Data2D* d);
+Data2D* unflatten(Data1D* d, int channels);
 
-LinearLayer CreateLinearLayer(int in_channels, int out_channels, int with_gradient);
+LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random);
 void RandomInitLinearLayer(LinearLayer* l);
 void DestroyLinearLayer(LinearLayer* layer);
-ConvLayer CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient);
+ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient, int random);
 void RandomInitConvLayer(ConvLayer* c);
 void DestroyConvLayer(ConvLayer* c);
 

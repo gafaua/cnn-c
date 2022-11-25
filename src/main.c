@@ -3,44 +3,69 @@
 #include <stdlib.h>
 #include <string.h>
 #include <omp.h>
-#include <time.h>
+#include <sys/time.h>
 
 #include "lib.h"
+#include "tests.h"
 #define TRUE 1
 #define FALSE 0
+
+long long timeInMilliseconds(void) {
+    struct timeval tv;
+
+    gettimeofday(&tv,NULL);
+    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+}
 
 int main(int argc,char** argv) {
     int p = omp_get_max_threads();
     printf("Max number of threads used: %d\n\n", p);
 
-    time_t start, end; 
+    long long start, end; 
 
-    int b = 1;
-    int n = 5;
-
-    printf("Init done, starting processing\n");
     // start timer. 
-    time(&start); 
+    int in = 10;
+    int b = 1;
 
-    int gt[2] = {4, 2};
-    Data1D d = CreateData1D(n, b);
-    random_init_matrix(d.mat, b, n);
+    LinearLayer* ll1 = CreateLinearLayer(in, 100, TRUE, TRUE);
+    LinearLayer* ll2 = CreateLinearLayer(100, 500, TRUE, TRUE);
+    LinearLayer* ll3 = CreateLinearLayer(500, 100, TRUE, TRUE);
+    LinearLayer* ll4 = CreateLinearLayer(100, 32, TRUE, TRUE);
+    LinearLayer* ll5 = CreateLinearLayer(32, 200, TRUE, TRUE);
+    LayerNode* u1 = (LayerNode*) malloc(sizeof(LayerNode));
+    u1->type = Unflatten;
+    ConvLayer* cl1 = CreateConvLayer(2, 5, 3, TRUE, TRUE);
+    ConvLayer* cl2 = CreateConvLayer(5, 2, 3, TRUE, TRUE);
+    ConvLayer* cl3 = CreateConvLayer(2, 5, 3, TRUE, TRUE);
+    LayerNode* f1 = (LayerNode*) malloc(sizeof(LayerNode));
+    f1->type = Flatten;
+    LinearLayer* ll6 = CreateLinearLayer(80, 10, TRUE, TRUE);
 
-    float loss = CrossEntropyForward(&d, (int *)&gt);
-    print_data1d(&d);
-    printf("Loss: %f\n", loss);
+    ll1->node.next = (LayerNode*) ll2;
+    ll2->node.next = (LayerNode*) ll3;
+    ll3->node.next = (LayerNode*) ll4;
+    ll4->node.next = (LayerNode*) ll5;
+    ll5->node.next = u1;
+    u1->next = (LayerNode*) cl1;
+    cl1->node.next = (LayerNode*) cl2;
+    cl2->node.next = (LayerNode*) cl3;
+    cl3->node.next = f1;
+    f1->next = (LayerNode*) ll6;
 
-    time(&end);
+    Data1D* inputs = CreateData1D(in, b);
+    random_init_matrix(inputs->mat, b, in);
+    start = timeInMilliseconds(); 
+    Data1D* outputs = (Data1D*) network_forward((LayerNode*) ll1, (DataType*) inputs);
 
-    time_t time_taken;
 
-    time_taken = (end - start);
+    end = timeInMilliseconds();
+    print_data2d(&cl2->X);
+    // print_data1d(inputs);
+    // print_data1d(outputs);
 
-    printf("Time taken for processing: %ld sec.\n", time_taken);
+    long long time_taken = (end - start);
 
-    printf("Clearing memory...\n");
-
-    DestroyData1D(&d);
+    printf("Time taken for processing: %lld ms.\n", time_taken);
 
     printf("Done.\n");
 }
