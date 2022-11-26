@@ -22,44 +22,36 @@ int main(int argc,char** argv) {
     printf("Max number of threads used: %d\n\n", p);
 
     long long start, end; 
+    start = timeInMilliseconds();
 
     // start timer. 
     int in = 10;
     int b = 1;
 
-    LinearLayer* ll1 = CreateLinearLayer(in, 100, TRUE, TRUE);
-    LinearLayer* ll2 = CreateLinearLayer(100, 500, TRUE, TRUE);
-    LinearLayer* ll3 = CreateLinearLayer(500, 100, TRUE, TRUE);
-    LinearLayer* ll4 = CreateLinearLayer(100, 32, TRUE, TRUE);
-    LinearLayer* ll5 = CreateLinearLayer(32, 200, TRUE, TRUE);
-    LayerNode* u1 = (LayerNode*) malloc(sizeof(LayerNode));
-    u1->type = Unflatten;
-    ConvLayer* cl1 = CreateConvLayer(2, 5, 3, TRUE, TRUE);
-    ConvLayer* cl2 = CreateConvLayer(5, 2, 3, TRUE, TRUE);
-    ConvLayer* cl3 = CreateConvLayer(2, 5, 3, TRUE, TRUE);
-    LayerNode* f1 = (LayerNode*) malloc(sizeof(LayerNode));
-    f1->type = Flatten;
-    LinearLayer* ll6 = CreateLinearLayer(80, 10, TRUE, TRUE);
-
-    ll1->node.next = (LayerNode*) ll2;
-    ll2->node.next = (LayerNode*) ll3;
-    ll3->node.next = (LayerNode*) ll4;
-    ll4->node.next = (LayerNode*) ll5;
-    ll5->node.next = u1;
-    u1->next = (LayerNode*) cl1;
-    cl1->node.next = (LayerNode*) cl2;
-    cl2->node.next = (LayerNode*) cl3;
-    cl3->node.next = f1;
-    f1->next = (LayerNode*) ll6;
+    Network* net = CreateNetwork();
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(in, 100, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(100, 500, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(500, 100, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(100, 32, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(32, 200, TRUE, TRUE));
+    AddToNetwork(net, CreateUnflattenLayer());
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(2, 5, 3, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(5, 2, 3, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(2, 5, 3, TRUE, TRUE));
+    AddToNetwork(net, CreateFlattenLayer());
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(80, 10, TRUE, TRUE));
 
     Data1D* inputs = CreateData1D(in, b);
     random_init_matrix(inputs->mat, b, in);
-    start = timeInMilliseconds(); 
-    Data1D* outputs = (Data1D*) network_forward((LayerNode*) ll1, (DataType*) inputs);
 
+    printf("Forward pass\n");
+    Data1D* outputs = (Data1D*) network_forward(net->first, (DataType*) inputs);
+    printf("Backward pass\n");
+    network_backward(net->last, (DataType*) outputs);
+
+    DestroyNetwork(net->first);
 
     end = timeInMilliseconds();
-    print_data2d(&cl2->X);
     // print_data1d(inputs);
     // print_data1d(outputs);
 

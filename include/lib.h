@@ -29,11 +29,6 @@ typedef struct SquareMatrix {
     int size;
 } Square;
 
-typedef struct BackwardMatrices {
-    Square dX;
-    Square dW;
-} BackwardConvResult;
-
 typedef struct Data1D {
     DataType type;
     float** mat; // Matrix of size [b, n]
@@ -55,6 +50,11 @@ typedef struct LayerNode {
     NodeType type;
 
 } LayerNode;
+
+typedef struct Network {
+    LayerNode* first;
+    LayerNode* last;
+} Network;
 
 typedef struct LinearLayer {
     LayerNode node;
@@ -79,6 +79,8 @@ typedef struct ConvLayer {
     float (*activation)(float);
 } ConvLayer;
 
+Network* CreateNetwork();
+void AddToNetwork(Network* network, LayerNode* node);
 DataType* network_forward(LayerNode* node, DataType* data);
 DataType* network_backward(LayerNode* node, DataType* data);
 void DestroyNetwork(LayerNode* node);
@@ -106,6 +108,8 @@ void DestroyData2D(Data2D* d);
 Data1D* flatten(Data2D* d);
 Data2D* unflatten(Data1D* d, int channels);
 
+LayerNode* CreateFlattenLayer();
+LayerNode* CreateUnflattenLayer();
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random);
 void RandomInitLinearLayer(LinearLayer* l);
 void DestroyLinearLayer(LinearLayer* layer);
