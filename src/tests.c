@@ -47,6 +47,44 @@ void test_functions_memory() {
     DestroyLinearLayer(ll);
     printf("Ok\nDestroying Conv Layer...");
     DestroyConvLayer(cl);
+    printf("\nOk\n");
 
     printf("Individual functions are memory safe\n");
+}
+
+void test_network() {
+    int in = 10;
+    int b = 1;
+
+    printf("Testing Network Creation...");
+    Network* net = CreateNetwork();
+    printf("Ok\nTesting Add to network...");
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(in, 100, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(100, 500, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(500, 100, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(100, 32, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(32, 200, TRUE, TRUE));
+    AddToNetwork(net, CreateUnflattenLayer());
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(2, 5, 3, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(5, 2, 3, TRUE, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(2, 5, 3, TRUE, TRUE));
+    AddToNetwork(net, CreateFlattenLayer());
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(80, 10, TRUE, TRUE));
+    printf("Ok\nTesting Forward pass...");
+
+    Data1D* inputs = CreateData1D(in, b);
+    random_init_matrix(inputs->mat, b, in);
+
+    Data1D* outputs = (Data1D*) network_forward(net->first, (DataType*) inputs);
+    printf("Ok\nTesting Backward pass...");
+    network_backward(net->last, (DataType*) outputs);
+    printf("Ok\nTesting Destroy Network...");
+
+    DestroyNetwork(net);
+    printf("Ok\nNetwork passed all tests.\n");
+}
+
+void test_all() {
+    test_functions_memory();
+    test_network();
 }

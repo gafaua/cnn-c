@@ -83,7 +83,7 @@ Network* CreateNetwork();
 void AddToNetwork(Network* network, LayerNode* node);
 DataType* network_forward(LayerNode* node, DataType* data);
 DataType* network_backward(LayerNode* node, DataType* data);
-void DestroyNetwork(LayerNode* node);
+void DestroyNetwork(Network* network);
 
 Data2D* conv_forward(ConvLayer* layer, Data2D* input);
 Data2D* conv_backward(ConvLayer* layer, Data2D* dY);

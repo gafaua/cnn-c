@@ -85,24 +85,26 @@ DataType* network_backward(LayerNode* node, DataType* dY) {
     return dX;
 }
 
-void DestroyNetwork(LayerNode* node) {
-    LayerNode* next = node->next;
+void DestroyNetwork(Network* network) {
+    LayerNode* node = network->first;
+    while (node != NULL) {
+        LayerNode* next = node->next;
 
-    switch (node->type)
-    {
-    case Linear:
-        DestroyLinearLayer((LinearLayer*) node);
-        break;
-    case Conv:
-        DestroyConvLayer((ConvLayer*) node);
-        break;
-    default:
-        break;
-    }
+        switch (node->type)
+        {
+        case Linear:
+            DestroyLinearLayer((LinearLayer*) node);
+            break;
+        case Conv:
+            DestroyConvLayer((ConvLayer*) node);
+            break;
+        default:
+            break;
+        }
 
-    if (next != NULL) {
-        DestroyNetwork(next);
+        node = next;
     }
+    free(network);
 }
 
 // Y must be 0 init
