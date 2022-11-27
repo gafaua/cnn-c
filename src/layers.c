@@ -54,10 +54,10 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
     for (i = 0; i < output->b; i++) {
         Square* in = input->data[i];
         for (j = 0; j < output->c; j++) {
-            Square* kernels = layer->w[j];
+            Square kernel = layer->w[j];
             Square out = output->data[i][j];
             for (k = 0; k < input->c; k++)
-                convolution(in[k], kernels[k], out);
+                convolution(in[k], kernel, out);
         }
     }
 
@@ -80,8 +80,7 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
     // Clear gradients
     Data2D* dX = CreateData2DZeros(layer->X.size, layer->X.b, layer->X.c);
     for (i = 0; i < layer->out; i++)
-        for (j = 0; j < layer->in; j++)
-            init_square(layer->dW[i][j], 0.0);
+        init_square(layer->dW[i], 0.0);
 
     // Compute new gradients
     for (k = 0; k < layer->X.b; k++) {
@@ -89,13 +88,14 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
         Square* Xb = layer->X.data[k];
         Square* dXb = dX->data[k];
         for (i = 0; i < layer->out; i++) {
-            Square* kernels = layer->w[i];
-            Square* dWOut = layer->dW[i];
+            Square kernel = layer->w[i];
+            Square dWOut  = layer->dW[i];
             for (j = 0; j < layer->in; j++) {
-                deconvolution(dYb[i], Xb[j], dXb[j], kernels[j], dWOut[j]);
+                deconvolution(dYb[i], Xb[j], dXb[j], kernel, dWOut);
             }
         }
     }
+
     return dX;
 }
 
@@ -342,19 +342,18 @@ void DestroyLinearLayer(LinearLayer* layer) {
 
 ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient, int random) {
     ConvLayer* c = (ConvLayer*) malloc(sizeof(ConvLayer));
-    c->w = square_allocate_2d(out_channels, in_channels);
-    c->dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
+    c->w = square_allocate_1d(out_channels);
+    c->dW = with_gradient ? square_allocate_1d(out_channels) : NULL;
     c->X.data = NULL;
 
-    for (int i=0; i<out_channels; i++) 
-        for (int j=0; j<in_channels; j++) {
-            c->w[i][j].mat = fmatrix_allocate_2d(size, size);
-            c->w[i][j].size = size;
-            if (with_gradient) {
-                c->dW[i][j].mat = fmatrix_allocate_2d(size, size);
-                c->dW[i][j].size = size;
-            }
+    for (int i=0; i<out_channels; i++)  {
+        c->w[i].mat = fmatrix_allocate_2d(size, size);
+        c->w[i].size = size;
+        if (with_gradient) {
+            c->dW[i].mat = fmatrix_allocate_2d(size, size);
+            c->dW[i].size = size;
         }
+    }
 
     c->in = in_channels;
     c->out = out_channels;
@@ -374,25 +373,20 @@ ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with
 void RandomInitConvLayer(ConvLayer* c) {
     int size = c->size;
     for (int i=0; i < c->out; i++) {
-        for (int j=0; j < c->in; j++) {
-            random_init_matrix(c->w[i][j].mat, size, size);
-        }
+        random_init_matrix(c->w[i].mat, size, size);
     }
 }
 
 void DestroyConvLayer(ConvLayer* c) {
-    for (int i=0; i<c->out; i++) 
-        for (int j=0; j<c->in; j++) {
-            DestroySquareMatrix(c->w[i][j]);
-            if (c->dW != NULL) {
-                DestroySquareMatrix(c->dW[i][j]);
-            } 
-        }
-    free(c->w[0]);
+    for (int i=0; i<c->out; i++) {
+        DestroySquareMatrix(c->w[i]);
+        if (c->dW != NULL) {
+            DestroySquareMatrix(c->dW[i]);
+        } 
+    }
     free(c->w);
     c->w = NULL;
     if (c->dW != NULL) {
-        free(c->dW[0]);
         free(c->dW);
         c->dW = NULL;
     }
