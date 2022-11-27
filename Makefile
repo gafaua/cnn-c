@@ -8,10 +8,10 @@ SRCDIR=src
 
 LIBS=-lm
 
-_DEPS = lib.h tests.h
+_DEPS = layers.h definitions.h data.h network.h tests.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = lib.o tests.o
+_OBJ = layers.o data.o network.o tests.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)

@@ -1,5 +1,8 @@
 #pragma once
-#include "lib.h"
+#include "definitions.h"
+#include "network.h"
+#include "data.h"
+#include "layers.h"
 
 void test_functions_memory();
 void test_network();

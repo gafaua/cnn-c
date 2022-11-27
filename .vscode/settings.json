@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "lib.h": "c"
+        "lib.h": "c",
+        "layers.h": "c",
+        "tests.h": "c",
+        "network.h": "c"
     }
 }

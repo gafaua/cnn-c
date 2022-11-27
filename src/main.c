@@ -5,7 +5,9 @@
 #include <omp.h>
 #include <sys/time.h>
 
-#include "lib.h"
+#include "data.h"
+#include "layers.h"
+#include "network.h"
 #include "tests.h"
 #define TRUE 1
 #define FALSE 0
