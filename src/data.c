@@ -108,6 +108,78 @@ void print_matrix(float** m, int h, int w) {
     printf("\n");
 }
 
+// Creates data tensor of shape [batch_size, features]
+Data1D* CreateData1D(int features, int batch_size) {
+    Data1D* d = (Data1D*) malloc(sizeof(Data1D));
+    d->n = features;
+    d->b = batch_size;
+    d->mat = fmatrix_allocate_2d(batch_size, features);
+    d->type = D1D;
+    return d;
+}
+
+void DestroyData1D(Data1D* d) {
+    if (d->mat == NULL) {
+        return;
+    }
+
+    free_fmatrix_2d(d->mat);
+    d->mat = NULL;
+    free(d);
+}
+
+// Creates data tensor of shape [batch_size, channels, size, size]
+Data2D* CreateData2D(int size, int batch_size, int channels) {
+    Data2D* d = (Data2D*) malloc(sizeof(Data2D));
+    d->size = size;
+    d->b = batch_size;
+    d->c = channels;
+    d->data = square_allocate_2d(batch_size, channels);
+    d->type = D2D;
+    for (int i = 0; i < batch_size; i++)
+        for (int j = 0; j < channels; j++)
+            d->data[i][j] = CreateSquareMatrix(size);
+    return d;
+}
+
+// Creates data tensor of shape [batch_size, channels, size, size]
+Data2D* CreateData2DZeros(int size, int batch_size, int channels) {
+    Data2D* d = (Data2D*) malloc(sizeof(Data2D));
+    d->size = size;
+    d->b = batch_size;
+    d->c = channels;
+    d->data = square_allocate_2d(batch_size, channels);
+    d->type = D2D;
+    for (int i = 0; i < batch_size; i++)
+        for (int j = 0; j < channels; j++)
+            d->data[i][j] = CreateZerosMatrix(size);
+    return d;
+}
+
+void RandomInitData2D(Data2D* d) {
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->c; j++)
+            random_init_matrix(d->data[i][j].mat, d->size, d->size);
+}
+
+void ClearData2D(Data2D* d) {
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->c; j++)
+            init_square(d->data[i][j], 0.0);
+}
+
+void DestroyData2D(Data2D* d) {
+    if (d->data == NULL) {
+        return;
+    }
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->c; j++)
+            DestroySquareMatrix(d->data[i][j]);
+    free(d->data[0]);
+    free(d->data);
+    d->data = NULL;
+}
+
 void print_data1d(Data1D* d) {
     printf("Data1D of shape: [%d, %d]\n", d->b, d->n);
     print_matrix(d->mat, d->b, d->n);

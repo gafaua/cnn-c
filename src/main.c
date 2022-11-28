@@ -26,9 +26,8 @@ int main(int argc,char** argv) {
     long long start, end; 
     start = timeInMilliseconds();
     // start timer. 
-    //test_all();
+    test_all();
 
-    test_conv2d_forward_backward();
     end = timeInMilliseconds();
     // print_data1d(inputs);
     // print_data1d(outputs);
