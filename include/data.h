@@ -29,5 +29,6 @@ void ClearData2D(Data2D* d);
 void DestroyData2D(Data2D* d);
 
 void print_data1d(Data1D* d);
+void print_2d_square_array(Square** data, int vsize, int wsize, int size);
 void print_data2d(Data2D* d);
 void print_square(Square s);

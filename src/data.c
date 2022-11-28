@@ -49,7 +49,6 @@ void random_init_matrix(float** m, int h, int w) {
         }
 }
 
-// TODO test speed, try to transpose M2
 // M1: [a, b] x M2: [b, c] -> R: [a, c]
 void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
     #pragma omp parallel for shared(M1,M2,R)
@@ -114,13 +113,12 @@ void print_data1d(Data1D* d) {
     print_matrix(d->mat, d->b, d->n);
 }
 
-void print_data2d(Data2D* d) {
-    printf("Data2D of shape: [%d, %d, %d, %d]\n", d->b, d->c, d->size, d->size);
-    for (int i=0; i<d->b; i++) {
-        for (int k=0; k<d->size; k++) {
-            for (int j=0; j<d->c; j++) {
-                for (int l=0; l<d->size; l++) {
-                    printf("%.2f ", d->data[i][j].mat[k][l]);
+void print_2d_square_array(Square** data, int vsize, int wsize, int size) {
+    for (int i=0; i<vsize; i++) {
+        for (int k=0; k<size; k++) {
+            for (int j=0; j<wsize; j++) {
+                for (int l=0; l<size; l++) {
+                    printf("%.10f ", data[i][j].mat[k][l]);
                 }
                 printf(" ");
             }
@@ -128,6 +126,11 @@ void print_data2d(Data2D* d) {
         }
         printf("\n");
     }
+}
+
+void print_data2d(Data2D* d) {
+    printf("Data2D of shape: [%d, %d, %d, %d]\n", d->b, d->c, d->size, d->size);
+    print_2d_square_array(d->data, d->b, d->c, d->size);
 }
 
 /*----------------------------------------------------------*/

@@ -7,3 +7,4 @@
 void test_functions_memory();
 void test_network();
 void test_all();
+void test_conv2d_forward_backward();

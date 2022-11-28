@@ -3,7 +3,7 @@
 
 // Y must be 0 init
 void convolution(Square X, Square W, Square Y) {
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i=0; i < Y.size; i++)
         for(int j=0; j < Y.size; j++) {
             float sum = 0.0;
@@ -15,7 +15,6 @@ void convolution(Square X, Square W, Square Y) {
 }
 
 void deconvolution(Square dY, Square X, Square dX, Square W, Square dW) {
-    #pragma omp parallel for
     for(int i=0; i < dY.size; i++)
         for(int j=0; j < dY.size; j++) {
             float dYElem = dY.mat[i][j];
