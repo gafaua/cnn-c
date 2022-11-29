@@ -84,7 +84,7 @@ void test_network() {
     random_init_matrix(inputs->mat, b, in);
     Data1D* outputs;
     Data1D* dY;
-    int epochs = 10;
+    int epochs = 2;
     for (int i = 1; i <=epochs; i++) {
         printf("Ok\nTesting Forward pass %d/%d...", i, epochs);
         outputs = (Data1D*) network_forward(net, (DataType*) inputs);
@@ -108,23 +108,23 @@ void test_mnist_network() {
     Network* net = CreateNetworkMNIST(TRUE);
     int batch = 16;
     Data2D* inputs = CreateData2D(28, batch, 1);
-    int num_batch = 100;
+    int num_batch = 10;
     Data1D* outputs;
     Data1D* dY;
-
+    setbuf(stdout, NULL);
     for (int i = 1; i <=num_batch; i++) {
-        printf("Ok\nTesting Forward pass %d/%d...", i, num_batch);
+        printf("\rTesting Forward pass %d/%d...", i, num_batch);
         outputs = (Data1D*) network_forward(net, (DataType*) inputs);
         dY = CreateData1D(outputs->n, outputs->b);
         init_matrix(dY->mat, 1.0, dY->b ,dY->n);
-        printf("Ok\nTesting Backward pass %d/%d...", i, num_batch);
-
+        printf("\rTesting Backward pass %d/%d...", i, num_batch);
         network_backward(net, (DataType*) dY);
         DestroyData1D(outputs);
     }
 
     DestroyData2D(inputs);
     DestroyNetwork(net);
+    printf("\nTesting MNIST network OK...\n");
 }
 
 int equals_with_tolerance(float expected, float value) {

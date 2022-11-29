@@ -90,6 +90,10 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
             }
         }
     }
+
+    // Learn from the new gradients
+    LearnConvLayer(layer, 0.001);
+
     return dX;
 }
 
@@ -131,7 +135,19 @@ Data1D* linear_backward(LinearLayer* layer, Data1D* dY) {
     matrix_mul_2d(dY->mat, layer->w, dX->mat, dX->b, layer->out, dX->n);
     // dW = dY.T * X
     matrix_mul_2d_T1(dY->mat, layer->X->mat, layer->dW, layer->out, dY->b, layer->in);
+
+    // Learn from the new gradients
+    LearnLinearLayer(layer, 0.001);
+
     return dX;
+}
+
+Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input) {
+    // TODO
+}
+
+Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY) {
+    // TODO
 }
 
 float ReLU(float val) {
@@ -256,6 +272,16 @@ void RandomInitLinearLayer(LinearLayer* l) {
     random_init_matrix(l->w, l->out, l->in);
 }
 
+void LearnLinearLayer(LinearLayer* l, float learning_rate) {
+    assert(l->dW != NULL && "Gradient was not calculated for this linear layer");
+
+    #pragma omp parallel for
+    for (int i = 0; i < l->out; i++)
+        for (int j = 0; j < l->in; j++) {
+            l->w[i][j] += l->dW[i][j] * learning_rate;
+        }
+}
+
 void DestroyLinearLayer(LinearLayer* layer) {
     free_fmatrix_2d(layer->w);
     if (layer->dW != NULL) free_fmatrix_2d(layer->dW);
@@ -303,6 +329,17 @@ void RandomInitConvLayer(ConvLayer* c) {
             random_init_matrix(c->w[i][j].mat, size, size);
         }
     }
+}
+
+void LearnConvLayer(ConvLayer* c, float learning_rate) {
+    assert(c->dW != NULL && "Gradient was not calculated for this conv layer");
+
+    #pragma omp parallel for
+    for (int i=0; i<c->out; i++) 
+        for (int j=0; j<c->in; j++)
+            for(int k=0; k<c->size; k++)
+                for(int l=0; l<c->size; l++)
+                    c->w[i][j].mat[k][l] += c->dW[i][j].mat[k][l] * learning_rate;
 }
 
 void DestroyConvLayer(ConvLayer* c) {

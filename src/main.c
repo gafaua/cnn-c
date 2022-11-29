@@ -27,6 +27,7 @@ int main(int argc,char** argv) {
     start = timeInMilliseconds();
     // start timer. 
     test_mnist_network();
+    //test_network();
     //test_all();
 
     end = timeInMilliseconds();

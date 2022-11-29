@@ -77,3 +77,10 @@ typedef struct ConvLayer {
 
     float (*activation)(float);
 } ConvLayer;
+
+typedef struct MaxPoolLayer {
+    LayerNode node;
+    int size;
+    Data2D* X;
+
+} MaxPoolLayer;
