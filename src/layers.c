@@ -35,14 +35,11 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
 
     if (layer->dW != NULL) {
         // Save inputs in layer->X
-        if (layer->X.data != NULL) {
-            DestroyData2D(&layer->X);
+        if (layer->X != NULL) {
+            DestroyData2D(layer->X);
         }
 
-        layer->X.b = input->b;
-        layer->X.c = input->c;
-        layer->X.size = input->size;
-        layer->X.data = input->data;
+        layer->X = input;
     }
 
     int output_size = get_output_size(input->size, layer->size);
@@ -63,7 +60,6 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
     return output;
 }
 
-// TODO TEEEEEEEST
 // @param dY: Data2D, dim [batch, out_channels, size, size]
 // @param X: Data2D, dim [batch, in_channels, size, size]
 // @param layer: Convolutionnal layer, weights of dim [out_channels, in_channels, k_size, k_size]
@@ -72,20 +68,20 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
 Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
     assert(layer->dW != NULL && "This convolutional layer wasn't initialized with the with_gradient flag");
     assert(layer->out == dY->c && "The gradient from the next layer doesn't have the same number of channels as the output channels of this convolutional layer");
-    assert(layer->in == layer->X.c && "The input tensor given doesn't have the same number of channels as the input channels of this convolutional layer");
+    assert(layer->in == layer->X->c && "The input tensor given doesn't have the same number of channels as the input channels of this convolutional layer");
 
     int i,j,k;
 
     // Clear gradients
-    Data2D* dX = CreateData2DZeros(layer->X.size, layer->X.b, layer->X.c);
+    Data2D* dX = CreateData2DZeros(layer->X->size, layer->X->b, layer->X->c);
     for (i = 0; i < layer->out; i++)
         for (j = 0; j < layer->in; j++)
             init_square(layer->dW[i][j], 0.0);
 
     // Compute new gradients
-    for (k = 0; k < layer->X.b; k++) {
+    for (k = 0; k < layer->X->b; k++) {
         Square* dYb = dY->data[k];
-        Square* Xb = layer->X.data[k];
+        Square* Xb = layer->X->data[k];
         Square* dXb = dX->data[k];
         for (i = 0; i < layer->out; i++) {
             Square* kernels = layer->w[i];
@@ -107,13 +103,11 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
     
     if (layer->dW != NULL) {
         // Save inputs in layer.X
-        if (layer->X.mat != NULL) {
-            DestroyData1D(&layer->X);
+        if (layer->X != NULL) {
+            DestroyData1D(layer->X);
         }
 
-        layer->X.b = input->b;
-        layer->X.n = input->n;
-        layer->X.mat = input->mat;
+        layer->X = input;
     }
 
     Data1D* outputs = CreateData1D(layer->out, input->b);
@@ -129,15 +123,15 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
 Data1D* linear_backward(LinearLayer* layer, Data1D* dY) {
     assert(layer->dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
     assert(dY->n == layer->out && "The gradient from the next layer has not the same number of features than this layer");
-    assert(dY->b == layer->X.b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
+    assert(dY->b == layer->X->b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
 
-    Data1D* dX = CreateData1D(layer->X.n, layer->X.b);
+    Data1D* dX = CreateData1D(layer->X->n, layer->X->b);
     init_matrix(dX->mat, 0.0, dX->b, dX->n);
     init_matrix(layer->dW, 0.0, layer->out, layer->in);
     // dX = dY * layer.w
     matrix_mul_2d(dY->mat, layer->w, dX->mat, dX->b, layer->out, dX->n);
     // dW = dY.T * X
-    matrix_mul_2d_T1(dY->mat, layer->X.mat, layer->dW, layer->out, dY->b, layer->in);
+    matrix_mul_2d_T1(dY->mat, layer->X->mat, layer->dW, layer->out, dY->b, layer->in);
     return dX;
 }
 
@@ -235,6 +229,10 @@ LayerNode* CreateUnflattenLayer() {
     return l;
 }
 
+void DestroyLayerNode(LayerNode* node) {
+    free(node);
+}
+
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random) {
     LinearLayer* l = (LinearLayer*) malloc(sizeof(LinearLayer));
     l->w = fmatrix_allocate_2d(out, in);
@@ -242,7 +240,7 @@ LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random) {
     l->out = out;
 
     l->dW = with_gradient ? fmatrix_allocate_2d(out, in) : NULL;
-    l->X.mat = NULL;
+    l->X = NULL;
 
     l->node.next = NULL;
     l->node.previous = NULL;
@@ -262,6 +260,7 @@ void RandomInitLinearLayer(LinearLayer* l) {
 void DestroyLinearLayer(LinearLayer* layer) {
     free_fmatrix_2d(layer->w);
     if (layer->dW != NULL) free_fmatrix_2d(layer->dW);
+    if (layer->X != NULL) DestroyData1D(layer->X);
     layer->w = NULL;
     layer->dW = NULL;
     free(layer);
@@ -271,7 +270,7 @@ ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with
     ConvLayer* c = (ConvLayer*) malloc(sizeof(ConvLayer));
     c->w = square_allocate_2d(out_channels, in_channels);
     c->dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
-    c->X.data = NULL;
+    c->X = NULL;
 
     for (int i=0; i<out_channels; i++) 
         for (int j=0; j<in_channels; j++) {
@@ -323,6 +322,8 @@ void DestroyConvLayer(ConvLayer* c) {
         free(c->dW);
         c->dW = NULL;
     }
+    if (c->X != NULL) DestroyData2D(c->X);
+
     free(c);
 }
 

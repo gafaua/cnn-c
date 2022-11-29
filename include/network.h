@@ -6,6 +6,6 @@
 
 Network* CreateNetwork();
 void AddToNetwork(Network* network, LayerNode* node);
-DataType* network_forward(LayerNode* node, DataType* data);
-DataType* network_backward(LayerNode* node, DataType* data);
+DataType* network_forward(Network* network, DataType* input);
+void network_backward(Network* network, DataType* dY);
 void DestroyNetwork(Network* network);

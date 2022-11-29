@@ -59,7 +59,7 @@ typedef struct LinearLayer {
     LayerNode node;
     float** w;  // Matrix of size [out, in] * [in, b] -> [out, b]
     float** dW; // Gradient matrix of size [out, in]
-    Data1D X;  // Last input passed through this layer
+    Data1D* X;  // Last input passed through this layer
     int in;
     int out;
 
@@ -73,7 +73,7 @@ typedef struct ConvLayer {
     int size;
     Square** w;  // [out, in] kernels of size size*size
     Square** dW; // Gradient matrix of [out, in] kernels of size size*size
-    Data2D X;   // Last input passed through this layer
+    Data2D* X;   // Last input passed through this layer
 
     float (*activation)(float);
 } ConvLayer;

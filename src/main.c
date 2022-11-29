@@ -27,6 +27,7 @@ int main(int argc,char** argv) {
     start = timeInMilliseconds();
     // start timer. 
     test_all();
+    //test_all();
 
     end = timeInMilliseconds();
     // print_data1d(inputs);

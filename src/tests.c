@@ -4,7 +4,7 @@
 #define TOLERANCE 1e-5
 
 void test_all() {
-    test_functions_memory();
+    //test_functions_memory();
     test_network();
     test_conv2d_forward_backward();
 }
@@ -44,12 +44,12 @@ void test_functions_memory() {
     Data2D* d1d_unflat = unflatten(d2d_flat, c);
 
     printf("Ok\nDestroying Data1D...");
-    DestroyData1D(d1d);
+    //DestroyData1D(d1d);
     DestroyData1D(d1d_y);
     DestroyData1D(d1d_y_);
     DestroyData1D(d2d_flat);
     printf("Ok\nDestroying Data2D...");
-    DestroyData2D(d2d);
+    //DestroyData2D(d2d);
     DestroyData2D(d2d_y);
     DestroyData2D(d2d_y_);
     DestroyData2D(d1d_unflat);
@@ -64,7 +64,7 @@ void test_functions_memory() {
 
 void test_network() {
     int in = 10;
-    int b = 1;
+    int b = 2;
 
     printf("Testing Network Creation...");
     Network* net = CreateNetwork();
@@ -85,11 +85,19 @@ void test_network() {
     Data1D* inputs = CreateData1D(in, b);
     random_init_matrix(inputs->mat, b, in);
 
-    Data1D* outputs = (Data1D*) network_forward(net->first, (DataType*) inputs);
+    Data1D* outputs = (Data1D*) network_forward(net, (DataType*) inputs);
+    //Data1D* outputs1 = (Data1D*) network_forward(net, (DataType*) inputs);
+    Data1D* dY = CreateData1D(outputs->n, outputs->b);
+    init_matrix(dY->mat, 1.0, dY->b ,dY->n);
     printf("Ok\nTesting Backward pass...");
-    network_backward(net->last, (DataType*) outputs);
+
+    network_backward(net, (DataType*) dY);
+
     printf("Ok\nTesting Destroy Network...");
 
+    // DestroyData1D(inputs);
+
+    DestroyData1D(outputs);
     DestroyNetwork(net);
     printf("Ok\nNetwork passed all tests.\n");
 }
@@ -195,5 +203,6 @@ void test_conv2d_forward_backward() {
     printf("Ok\n");
 
     DestroyConvLayer(layer);
-    DestroyData2D(data_input);
+    DestroyData2D(data_output);
+    DestroyData2D(dX);
 }

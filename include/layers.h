@@ -20,6 +20,7 @@ Data2D* unflatten(Data1D* d, int channels);
 
 LayerNode* CreateFlattenLayer();
 LayerNode* CreateUnflattenLayer();
+void DestroyLayerNode(LayerNode* node);
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random);
 void RandomInitLinearLayer(LinearLayer* l);
 void DestroyLinearLayer(LinearLayer* layer);
