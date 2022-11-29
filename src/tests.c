@@ -6,7 +6,7 @@
 void test_all() {
     //test_functions_memory();
     test_network();
-    test_conv2d_forward_backward();
+    //test_conv2d_forward_backward();
 }
 
 
@@ -44,12 +44,10 @@ void test_functions_memory() {
     Data2D* d1d_unflat = unflatten(d2d_flat, c);
 
     printf("Ok\nDestroying Data1D...");
-    //DestroyData1D(d1d);
     DestroyData1D(d1d_y);
     DestroyData1D(d1d_y_);
     DestroyData1D(d2d_flat);
     printf("Ok\nDestroying Data2D...");
-    //DestroyData2D(d2d);
     DestroyData2D(d2d_y);
     DestroyData2D(d2d_y_);
     DestroyData2D(d1d_unflat);
@@ -84,20 +82,23 @@ void test_network() {
 
     Data1D* inputs = CreateData1D(in, b);
     random_init_matrix(inputs->mat, b, in);
+    Data1D* outputs;
+    Data1D* dY;
+    int epochs = 10;
+    for (int i = 1; i <=epochs; i++) {
+        printf("Ok\nTesting Forward pass %d/%d...", i, epochs);
+        outputs = (Data1D*) network_forward(net, (DataType*) inputs);
+        dY = CreateData1D(outputs->n, outputs->b);
+        init_matrix(dY->mat, 1.0, dY->b ,dY->n);
+        printf("Ok\nTesting Backward pass %d/%d...", i, epochs);
 
-    Data1D* outputs = (Data1D*) network_forward(net, (DataType*) inputs);
-    //Data1D* outputs1 = (Data1D*) network_forward(net, (DataType*) inputs);
-    Data1D* dY = CreateData1D(outputs->n, outputs->b);
-    init_matrix(dY->mat, 1.0, dY->b ,dY->n);
-    printf("Ok\nTesting Backward pass...");
-
-    network_backward(net, (DataType*) dY);
+        network_backward(net, (DataType*) dY);
+        DestroyData1D(outputs);
+    }
 
     printf("Ok\nTesting Destroy Network...");
 
-    // DestroyData1D(inputs);
-
-    DestroyData1D(outputs);
+    DestroyData1D(inputs);
     DestroyNetwork(net);
     printf("Ok\nNetwork passed all tests.\n");
 }

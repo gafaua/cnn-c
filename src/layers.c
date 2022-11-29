@@ -3,7 +3,7 @@
 
 // Y must be 0 init
 void convolution(Square X, Square W, Square Y) {
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for(int i=0; i < Y.size; i++)
         for(int j=0; j < Y.size; j++) {
             float sum = 0.0;
@@ -46,7 +46,6 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
     Data2D* output = CreateData2DZeros(output_size, input->b, layer->out);
     int i,j,k;
 
-    //#pragma omp parallel for
     for (i = 0; i < output->b; i++) {
         Square* in = input->data[i];
         for (j = 0; j < output->c; j++) {

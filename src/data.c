@@ -35,7 +35,7 @@ void init_square(Square sq, float val) {
 }
 
 void init_matrix(float** m, float val, int h, int w) {
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < h; i++)
         for (int j = 0; j < w; j++)
             m[i][j] = val;
@@ -51,7 +51,7 @@ void random_init_matrix(float** m, int h, int w) {
 
 // M1: [a, b] x M2: [b, c] -> R: [a, c]
 void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
-    //#pragma omp parallel for shared(M1,M2,R)
+    #pragma omp parallel for shared(M1,M2,R)
     for(int i = 0; i < a; i++) {
         for(int k = 0; k < b; k++) { 
             float* r = R[i];
@@ -66,7 +66,7 @@ void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
 
 // M1T: [b, a] x M2: [b, c] -> R: [a, c]
 void matrix_mul_2d_T1(float** M1T, float** M2, float** R, int a, int b, int c) {
-    //#pragma omp parallel for shared(M1T,M2,R) collapse(2)
+    #pragma omp parallel for shared(M1T,M2,R) collapse(2)
     for(int k = 0; k < b; k++) { 
         for(int i = 0; i < a; i++) {
             float* m2 = M2[k];
@@ -81,7 +81,7 @@ void matrix_mul_2d_T1(float** M1T, float** M2, float** R, int a, int b, int c) {
 
 // M1: [a, b] x M2T: [c, b] -> R: [a, c]
 void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c) {
-    //#pragma omp parallel for shared(M1,M2T,R)
+    #pragma omp parallel for shared(M1,M2T,R)
     for(int i = 0; i < a; i++) {
         float* m1 = M1[i];
         for(int j = 0; j < c; j++) {
@@ -119,6 +119,20 @@ Data1D* CreateData1D(int features, int batch_size) {
     return d;
 }
 
+Data1D* CopyData1D(Data1D* data) {
+    Data1D* d = (Data1D*) malloc(sizeof(Data1D));
+    d->n = data->n;
+    d->b = data->b;
+    d->mat = fmatrix_allocate_2d(d->b, d->n);
+    
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->n; j++)
+            d->mat[i][j] = data->mat[i][j];
+
+    d->type = D1D;
+    return d;
+}
+
 void DestroyData1D(Data1D* d) {
     free_fmatrix_2d(d->mat);
     d->mat = NULL;
@@ -136,6 +150,19 @@ Data2D* CreateData2D(int size, int batch_size, int channels) {
     for (int i = 0; i < batch_size; i++)
         for (int j = 0; j < channels; j++)
             d->data[i][j] = CreateSquareMatrix(size);
+    return d;
+}
+
+Data2D* CopyData2D(Data2D* data) {
+    Data2D* d = (Data2D*) malloc(sizeof(Data2D));
+    d->size = data->size;
+    d->b = data->b;
+    d->c = data->c;
+    d->data = square_allocate_2d(d->b, d->c);
+    d->type = D2D;
+    for (int i = 0; i < d->b; i++)
+        for (int j = 0; j < d->c; j++)
+            d->data[i][j] = CopySquareMatrix(data->data[i][j]);
     return d;
 }
 

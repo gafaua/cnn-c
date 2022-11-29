@@ -21,8 +21,10 @@ void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c);
 void print_matrix(float** m, int h, int w);
 
 Data1D* CreateData1D(int features, int batch_size);
+Data1D* CopyData1D(Data1D* data);
 void DestroyData1D(Data1D* d);
 Data2D* CreateData2D(int size, int batch_size, int channels);
+Data2D* CopyData2D(Data2D* data);
 void RandomInitData2D(Data2D* d);
 Data2D* CreateData2DZeros(int size, int batch_size, int channels);
 void ClearData2D(Data2D* d);

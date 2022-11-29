@@ -21,37 +21,40 @@ void AddToNetwork(Network* network, LayerNode* node) {
 
 DataType* network_forward(Network* network, DataType* input) {
     LayerNode* node = network->first;
+    DataType* X;
+    if (*input == D1D) X = (DataType*) CopyData1D((Data1D*) input);
+    else if (*input == D2D) X = (DataType*) CopyData2D((Data2D*) input);
     DataType* output;
 
     while(node != NULL) {
         switch (node->type)
         {
         case Linear:
-            assert(*input == D1D && "The input of a Linear Layer must be a Data1D");
-            output = (DataType*) linear_forward((LinearLayer*) node, (Data1D*) input);
+            assert(*X == D1D && "The input of a Linear Layer must be a Data1D");
+            output = (DataType*) linear_forward((LinearLayer*) node, (Data1D*) X);
             break;
         case Conv:
-            assert(*input == D2D && "The input of a Conv Layer must be a Data2D");
-            output = (DataType*) conv_forward((ConvLayer*) node, (Data2D*) input);
+            assert(*X == D2D && "The input of a Conv Layer must be a Data2D");
+            output = (DataType*) conv_forward((ConvLayer*) node, (Data2D*) X);
             break;
         case Flatten:
-            assert(*input == D2D && "The input of a Flatten Layer must be a Data2D");
-            output = (DataType*) flatten((Data2D*) input);
-            DestroyData2D((Data2D*) input); // Destroy input since not used for backprop
+            assert(*X == D2D && "The input of a Flatten Layer must be a Data2D");
+            output = (DataType*) flatten((Data2D*) X);
+            DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
             break;
         case Unflatten:
-            assert(*input == D1D && "The input of an Unflatten Layer must be a Data1D");
+            assert(*X == D1D && "The input of an Unflatten Layer must be a Data1D");
             assert(node->next != NULL && node->next->type == Conv &&"An Unflatten Layer must lead to a Conv Layer");
             int channels = ((ConvLayer*) node->next)->in;
-            output = (DataType*) unflatten((Data1D*) input, channels);
-            DestroyData1D((Data1D*) input); // Destroy input since not used for backprop
+            output = (DataType*) unflatten((Data1D*) X, channels);
+            DestroyData1D((Data1D*) X); // Destroy input since not used for backprop
             break;
         default:
             break;
         }
 
         node = node->next;
-        input = output;
+        X = output;
     }
 
     return output;
@@ -63,7 +66,6 @@ void network_backward(Network* network, DataType* dY) {
     DataType* dX;
 
     while (node != NULL) {
-        printf("%d\n", node->type);
         switch (node->type) {
         case Linear:
             assert(*dY == D1D && "The output of a Linear Layer must be a Data1D");
@@ -108,11 +110,9 @@ void DestroyNetwork(Network* network) {
         switch (node->type)
         {
         case Linear:
-            printf("Destroying Linear\n");
             DestroyLinearLayer((LinearLayer*) node);
             break;
         case Conv:
-            printf("Destroying Conv\n");
             DestroyConvLayer((ConvLayer*) node);
             break;
         case Flatten:
