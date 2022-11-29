@@ -103,6 +103,30 @@ void test_network() {
     printf("Ok\nNetwork passed all tests.\n");
 }
 
+void test_mnist_network() {
+    printf("Testing MNIST network Creation...\n");
+    Network* net = CreateNetworkMNIST(TRUE);
+    int batch = 16;
+    Data2D* inputs = CreateData2D(28, batch, 1);
+    int num_batch = 100;
+    Data1D* outputs;
+    Data1D* dY;
+
+    for (int i = 1; i <=num_batch; i++) {
+        printf("Ok\nTesting Forward pass %d/%d...", i, num_batch);
+        outputs = (Data1D*) network_forward(net, (DataType*) inputs);
+        dY = CreateData1D(outputs->n, outputs->b);
+        init_matrix(dY->mat, 1.0, dY->b ,dY->n);
+        printf("Ok\nTesting Backward pass %d/%d...", i, num_batch);
+
+        network_backward(net, (DataType*) dY);
+        DestroyData1D(outputs);
+    }
+
+    DestroyData2D(inputs);
+    DestroyNetwork(net);
+}
+
 int equals_with_tolerance(float expected, float value) {
     float diff = fabsf(expected - value);
     float deviation = diff / expected;

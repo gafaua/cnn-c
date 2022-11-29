@@ -127,3 +127,21 @@ void DestroyNetwork(Network* network) {
     }
     free(network);
 }
+
+Network* CreateNetworkMNIST(int with_gradients) {
+    Network* net = CreateNetwork();
+    // Inputs: Data2D of size [b, 1, 28, 28]
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 5, 5, with_gradients, TRUE));
+    // 24
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(5, 10, 5, with_gradients, TRUE));
+    // 20
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(10, 32, 5, with_gradients, TRUE));
+    // 16
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(32, 10, 5, with_gradients, TRUE));
+    // 12
+    AddToNetwork(net, CreateFlattenLayer());
+    // 10 * 12 * 12
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(10 * 12 * 12, 100, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(100, 10, with_gradients, TRUE));
+    return net;
+}
