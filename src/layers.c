@@ -427,7 +427,7 @@ void LearnLinearLayer(LinearLayer* l, float learning_rate) {
     #pragma omp parallel for
     for (int i = 0; i < l->out; i++)
         for (int j = 0; j < l->in; j++) {
-            l->w[i][j] += l->dW[i][j] * learning_rate;
+            l->w[i][j] -= l->dW[i][j] * learning_rate;
         }
 }
 
@@ -488,7 +488,7 @@ void LearnConvLayer(ConvLayer* c, float learning_rate) {
         for (int j=0; j<c->in; j++)
             for(int k=0; k<c->size; k++)
                 for(int l=0; l<c->size; l++)
-                    c->w[i][j].mat[k][l] += c->dW[i][j].mat[k][l] * learning_rate;
+                    c->w[i][j].mat[k][l] -= c->dW[i][j].mat[k][l] * learning_rate;
 }
 
 void DestroyConvLayer(ConvLayer* c) {
