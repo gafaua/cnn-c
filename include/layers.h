@@ -27,17 +27,17 @@ float CrossEntropyForward(Data1D* y_hat, int* y);
 Data1D* flatten(Data2D* d);
 Data2D* unflatten(Data1D* d, int channels);
 
-LayerNode* CreateFlattenLayer();
-LayerNode* CreateUnflattenLayer();
-void DestroyLayerNode(LayerNode* node);
+ViewLayer* CreateFlattenLayer(int channels);
+ViewLayer* CreateUnflattenLayer(int channels);
+void DestroyViewLayer(ViewLayer* node);
 
 MaxPoolLayer* CreateMaxPoolLayer();
 void DestroyMaxPoolLayer(MaxPoolLayer* layer);
 
-ReLU1DLayer* CreateReLU1DLayer();
+ReLU1DLayer* CreateReLU1DLayer(int with_gradient);
 void DestroyReLU1DLayer(ReLU1DLayer* layer);
 
-ReLU2DLayer* CreateReLU2DLayer();
+ReLU2DLayer* CreateReLU2DLayer(int with_gradient);
 void DestroyReLU2DLayer(ReLU2DLayer* layer);
 
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random);

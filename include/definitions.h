@@ -98,3 +98,8 @@ typedef struct ReLU2DLayer {
     Data2D* X;
     int with_gradient;
 } ReLU2DLayer;
+
+typedef struct ViewLayer {
+    LayerNode node;
+    int channels;   
+} ViewLayer;

@@ -72,11 +72,11 @@ void test_network() {
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(500, 100, TRUE, TRUE));
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(100, 32, TRUE, TRUE));
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(32, 200, TRUE, TRUE));
-    AddToNetwork(net, CreateUnflattenLayer());
+    AddToNetwork(net, (LayerNode*) CreateUnflattenLayer(5));
     AddToNetwork(net, (LayerNode*) CreateConvLayer(2, 5, 3, TRUE, TRUE));
     AddToNetwork(net, (LayerNode*) CreateConvLayer(5, 2, 3, TRUE, TRUE));
     AddToNetwork(net, (LayerNode*) CreateConvLayer(2, 5, 3, TRUE, TRUE));
-    AddToNetwork(net, CreateFlattenLayer());
+    AddToNetwork(net, (LayerNode*) CreateFlattenLayer(5));
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(80, 10, TRUE, TRUE));
     printf("Ok\nTesting Forward pass...");
 
@@ -108,7 +108,7 @@ void test_mnist_network() {
     Network* net = CreateNetworkMNIST(TRUE);
     int batch = 16;
     Data2D* inputs = CreateData2D(28, batch, 1);
-    int num_batch = 10;
+    int num_batch = 100;
     Data1D* outputs;
     Data1D* dY;
     setbuf(stdout, NULL);

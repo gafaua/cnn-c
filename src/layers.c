@@ -154,23 +154,40 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
     Data2D* output = CreateData2D(input->size, input->b, input->c);
 
     if (layer->with_gradient) {
-        layer->X = CreateData2D(input->size, input->b, input->c);
-    }
+        if (layer->X == NULL) {
+            layer->X = CreateData2D(input->size, input->b, input->c);
+        }
+        else if (layer->X != NULL && (layer->X->b != input->b || layer->X->c != input->c || layer->X->size != input->size)) {
+            DestroyData2D(layer->X);
+            layer->X = CreateData2D(input->size, input->b, input->c);
+        }
 
-    #pragma omp parallel for
-    for (int i = 0; i < input->b; i++)
-        for (int j = 0; j < input->c; j++) 
-            for (int k = 0; k < input->size; k++) 
-                for (int l = 0; l < input->size; l++) {
-                    if (input->data[i][j].mat[k][l] > 0) {
-                        output->data[i][j].mat[k][l] = input->data[i][j].mat[k][l];
-                        layer->X->data[i][j].mat[k][l] = 1.0;
-                    } 
-                    else {
-                        output->data[i][j].mat[k][l] = 0.0;
-                        layer->X->data[i][j].mat[k][l] = 0.0;
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->c; j++) 
+                for (int k = 0; k < input->size; k++) 
+                    for (int l = 0; l < input->size; l++) {
+                        if (input->data[i][j].mat[k][l] > 0) {
+                            output->data[i][j].mat[k][l] = input->data[i][j].mat[k][l];
+                            layer->X->data[i][j].mat[k][l] = 1.0;
+                        } 
+                        else {
+                            output->data[i][j].mat[k][l] = 0.0;
+                            layer->X->data[i][j].mat[k][l] = 0.0;
+                        }
                     }
-                }
+    }
+    else {
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->c; j++) 
+                for (int k = 0; k < input->size; k++) 
+                    for (int l = 0; l < input->size; l++) {
+                        output->data[i][j].mat[k][l] = input->data[i][j].mat[k][l] > 0 ?
+                                                       input->data[i][j].mat[k][l] :
+                                                       0.0;
+                    }
+    }
     
     return output;
 }
@@ -190,11 +207,50 @@ Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY) {
 }
 
 Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
+    Data1D* output = CreateData1D(input->n, input->b);
 
+    if (layer->with_gradient) {
+        if (layer->X == NULL) 
+            layer->X = CreateData1D(input->n, input->b);
+        else if (layer->X != NULL && (layer->X->b != input->b || layer->X->n != input->n)) {
+            DestroyData1D(layer->X);
+            layer->X = CreateData1D(input->n, input->b);
+        }
+
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->n; j++) 
+                if (input->mat[i][j] > 0) {
+                    output->mat[i][j] = input->mat[i][j];
+                    layer->X->mat[i][j] = 1.0;
+                } 
+                else {
+                    output->mat[i][j] = 0.0;
+                    layer->X->mat[i][j] = 0.0;
+                }
+    }
+    else {
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->n; j++) 
+                output->mat[i][j] = input->mat[i][j] > 0 ? 
+                                    input->mat[i][j] : 
+                                    0.0;
+    }
+    
+    return output;
 }
 
 Data1D* relu_1d_backward(ReLU1DLayer* layer, Data1D* dY) {
+    assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
 
+    #pragma omp parallel for
+    for (int i = 0; i < dY->b; i++)
+        for (int j = 0; j < dY->n; j++) 
+            if (layer->X->mat[i][j] == 0.0)
+                dY->mat[i][j] = 0.0;
+    
+    return dY;
 }
 
 
@@ -280,19 +336,21 @@ Data2D* unflatten(Data1D* d1, int channels) {
     return d2;
 }
 
-LayerNode* CreateFlattenLayer() {
-    LayerNode* l = (LayerNode*) malloc(sizeof(LayerNode));
-    l->type = Flatten;
+ViewLayer* CreateFlattenLayer(int channels) {
+    ViewLayer* l = (ViewLayer*) malloc(sizeof(ViewLayer));
+    l->node.type = Flatten;
+    l->channels = channels;
     return l;
 }
 
-LayerNode* CreateUnflattenLayer() {
-    LayerNode* l = (LayerNode*) malloc(sizeof(LayerNode));
-    l->type = Unflatten;
+ViewLayer* CreateUnflattenLayer(int channels) {
+    ViewLayer* l = (ViewLayer*) malloc(sizeof(ViewLayer));
+    l->node.type = Unflatten;
+    l->channels = channels;
     return l;
 }
 
-void DestroyLayerNode(LayerNode* node) {
+void DestroyViewLayer(ViewLayer* node) {
     free(node);
 }
 
@@ -326,7 +384,7 @@ void DestroyReLU1DLayer(ReLU1DLayer* layer) {
 
 ReLU2DLayer* CreateReLU2DLayer(int with_gradient) {
     ReLU2DLayer* l = (ReLU2DLayer*) malloc(sizeof(ReLU2DLayer));
-    l->node.type = ReLU1D;
+    l->node.type = ReLU2D;
     l->X = NULL;
     l->with_gradient = with_gradient;
 
