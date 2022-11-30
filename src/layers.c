@@ -150,6 +150,54 @@ Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY) {
     // TODO
 }
 
+Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
+    Data2D* output = CreateData2D(input->size, input->b, input->c);
+
+    if (layer->with_gradient) {
+        layer->X = CreateData2D(input->size, input->b, input->c);
+    }
+
+    #pragma omp parallel for
+    for (int i = 0; i < input->b; i++)
+        for (int j = 0; j < input->c; j++) 
+            for (int k = 0; k < input->size; k++) 
+                for (int l = 0; l < input->size; l++) {
+                    if (input->data[i][j].mat[k][l] > 0) {
+                        output->data[i][j].mat[k][l] = input->data[i][j].mat[k][l];
+                        layer->X->data[i][j].mat[k][l] = 1.0;
+                    } 
+                    else {
+                        output->data[i][j].mat[k][l] = 0.0;
+                        layer->X->data[i][j].mat[k][l] = 0.0;
+                    }
+                }
+    
+    return output;
+}
+
+Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY) {
+    assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
+    
+    #pragma omp parallel for
+    for (int i = 0; i < dY->b; i++)
+        for (int j = 0; j < dY->c; j++) 
+            for (int k = 0; k < dY->size; k++) 
+                for (int l = 0; l < dY->size; l++)
+                    if (layer->X->data[i][j].mat[k][l] == 0.0)
+                        dY->data[i][j].mat[k][l] = 0.0;
+    
+    return dY;
+}
+
+Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
+
+}
+
+Data1D* relu_1d_backward(ReLU1DLayer* layer, Data1D* dY) {
+
+}
+
+
 float ReLU(float val) {
     if (val <= 0.0) return 0.0;
     else return val;
@@ -247,6 +295,49 @@ LayerNode* CreateUnflattenLayer() {
 void DestroyLayerNode(LayerNode* node) {
     free(node);
 }
+
+MaxPoolLayer* CreateMaxPoolLayer(int size) {
+    MaxPoolLayer* l = (MaxPoolLayer*) malloc(sizeof(MaxPoolLayer));
+    l->size = size;
+    l->node.type = MaxPool;
+    l->X = NULL;
+
+    return l;
+}
+
+void DestroyMaxPoolLayer(MaxPoolLayer* layer) {
+    if (layer->X != NULL) DestroyData2D(layer->X);
+    free(layer);
+}
+
+ReLU1DLayer* CreateReLU1DLayer(int with_gradient) {
+    ReLU1DLayer* l = (ReLU1DLayer*) malloc(sizeof(ReLU1DLayer));
+    l->node.type = ReLU1D;
+    l->X = NULL;
+    l->with_gradient = with_gradient;
+
+    return l;
+}
+
+void DestroyReLU1DLayer(ReLU1DLayer* layer) {
+    if (layer->X != NULL) DestroyData1D(layer->X);
+    free(layer);
+}
+
+ReLU2DLayer* CreateReLU2DLayer(int with_gradient) {
+    ReLU2DLayer* l = (ReLU2DLayer*) malloc(sizeof(ReLU2DLayer));
+    l->node.type = ReLU1D;
+    l->X = NULL;
+    l->with_gradient = with_gradient;
+
+    return l;
+}
+
+void DestroyReLU2DLayer(ReLU2DLayer* layer) {
+    if (layer->X != NULL) DestroyData2D(layer->X);
+    free(layer);
+}
+
 
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random) {
     LinearLayer* l = (LinearLayer*) malloc(sizeof(LinearLayer));

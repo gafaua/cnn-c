@@ -14,6 +14,8 @@ typedef enum {
     Linear,
     Conv,
     MaxPool,
+    ReLU1D,
+    ReLU2D,
     Flatten,
     Unflatten,
 } NodeType;
@@ -84,3 +86,15 @@ typedef struct MaxPoolLayer {
     Data2D* X;
 
 } MaxPoolLayer;
+
+typedef struct ReLU1DLayer {
+    LayerNode node;
+    Data1D* X;
+    int with_gradient;
+} ReLU1DLayer;
+
+typedef struct ReLU2DLayer {
+    LayerNode node;
+    Data2D* X;
+    int with_gradient;
+} ReLU2DLayer;

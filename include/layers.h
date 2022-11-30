@@ -12,6 +12,12 @@ Data1D* linear_backward(LinearLayer* layer, Data1D* dY);
 Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input);
 Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY);
 
+Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input);
+Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY);
+
+Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input);
+Data1D* relu_1d_backward(ReLU1DLayer* layer, Data1D* dY);
+
 float ReLU(float val);
 float ReLU_backward(float val);
 float Identity(float val);
@@ -24,6 +30,15 @@ Data2D* unflatten(Data1D* d, int channels);
 LayerNode* CreateFlattenLayer();
 LayerNode* CreateUnflattenLayer();
 void DestroyLayerNode(LayerNode* node);
+
+MaxPoolLayer* CreateMaxPoolLayer();
+void DestroyMaxPoolLayer(MaxPoolLayer* layer);
+
+ReLU1DLayer* CreateReLU1DLayer();
+void DestroyReLU1DLayer(ReLU1DLayer* layer);
+
+ReLU2DLayer* CreateReLU2DLayer();
+void DestroyReLU2DLayer(ReLU2DLayer* layer);
 
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random);
 void RandomInitLinearLayer(LinearLayer* l);
