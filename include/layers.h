@@ -31,7 +31,7 @@ ViewLayer* CreateFlattenLayer(int channels);
 ViewLayer* CreateUnflattenLayer(int channels);
 void DestroyViewLayer(ViewLayer* node);
 
-MaxPoolLayer* CreateMaxPoolLayer();
+MaxPoolLayer* CreateMaxPoolLayer(int size, int with_gradient);
 void DestroyMaxPoolLayer(MaxPoolLayer* layer);
 
 ReLU1DLayer* CreateReLU1DLayer(int with_gradient);
@@ -52,3 +52,4 @@ void DestroyConvLayer(ConvLayer* c);
 
 void print_conv_layer(ConvLayer* layer);
 int get_output_size(int input_size, int filter_size);
+int get_input_size(int output_size, int filter_size);

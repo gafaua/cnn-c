@@ -65,6 +65,12 @@ DataType* network_forward(Network* network, DataType* input) {
             output = (DataType*) relu_2d_forward((ReLU2DLayer*) node, (Data2D*) X);
             DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
             break;
+        case MaxPool:
+            printf("M");
+            assert(*X == D2D && "The input of a MaxPool Layer must be a Data2D");
+            output = (DataType*) max_pool_forward((MaxPoolLayer*) node, (Data2D*) X);
+            DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
+            break;
         default:
             break;
         }
@@ -119,6 +125,12 @@ void network_backward(Network* network, DataType* dY) {
             assert(*dY == D2D && "The output of a ReLU2D Layer must be a Data2D");
             dX = (DataType*) relu_2d_backward((ReLU2DLayer*) node, (Data2D*) dY);
             break;
+        case MaxPool:
+            printf("M");
+            assert(*dY == D2D && "The output of a MaxPool Layer must be a Data2D");
+            dX = (DataType*) max_pool_backward((MaxPoolLayer*) node, (Data2D*) dY);
+            DestroyData2D((Data2D*) dY);
+            break;
         default:
             break;
         }
@@ -170,14 +182,12 @@ Network* CreateNetworkMNIST(int with_gradients) {
     AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 5, 5, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
     // 24
+    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(5, TRUE));
+    // 20
     AddToNetwork(net, (LayerNode*) CreateConvLayer(5, 10, 5, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
-    // 20
-    AddToNetwork(net, (LayerNode*) CreateConvLayer(10, 32, 5, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
     // 16
-    AddToNetwork(net, (LayerNode*) CreateConvLayer(32, 10, 5, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
+    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(5, TRUE));
     // 12
     AddToNetwork(net, (LayerNode*) CreateFlattenLayer(10));
     // 10 * 12 * 12

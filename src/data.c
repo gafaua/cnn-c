@@ -233,7 +233,7 @@ void print_data2d(Data2D* d) {
 /*  Alloue de la memoire pour une matrice 2d de float       */
 /*----------------------------------------------------------*/
 float** fmatrix_allocate_2d(int vsize,int hsize)
- {
+{
   int i;
   float** matrix;
   float *imptr;
@@ -246,7 +246,7 @@ float** fmatrix_allocate_2d(int vsize,int hsize)
  
   for(i=0;i<vsize;i++,imptr+=hsize) matrix[i]=imptr;
   return matrix;
- }
+}
 
 
 /*----------------------------------------------------------*/

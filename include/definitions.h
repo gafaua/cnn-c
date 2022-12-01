@@ -83,7 +83,8 @@ typedef struct ConvLayer {
 typedef struct MaxPoolLayer {
     LayerNode node;
     int size;
-    Data2D* X;
+    int* mem; // [b, c, size, size, 2]
+    int with_gradient;
 
 } MaxPoolLayer;
 

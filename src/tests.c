@@ -6,7 +6,9 @@
 void test_all() {
     //test_functions_memory();
     test_network();
-    //test_conv2d_forward_backward();
+    test_mnist_network();
+    test_conv2d_forward_backward();
+    test_linear_forward_backward();
 }
 
 
@@ -117,7 +119,7 @@ void test_mnist_network() {
     Data2D* inputs = CreateData2D(28, batch, 1);
     RandomInitData2D(inputs);
 
-    int num_batch = 10;
+    int num_batch = 300;
     Data1D* outputs;
     setbuf(stdout, NULL);
 
@@ -129,7 +131,12 @@ void test_mnist_network() {
         printf(" Loss: %f", loss.value);
         printf("\nTesting Backward pass %d/%d...", i, num_batch);
         network_backward(net, (DataType*) loss.dL);
+        print_data1d(outputs);
         DestroyData1D(outputs);
+    }
+
+    for (int i = 0; i < batch; i++) {
+        printf("%d ", gt[i]);
     }
 
     DestroyData2D(inputs);

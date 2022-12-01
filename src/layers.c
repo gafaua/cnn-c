@@ -1,10 +1,10 @@
 #include "layers.h"
 
-#define LR 0.00001
+#define LR 0.000004
 
 // Y must be 0 init
 void convolution(Square X, Square W, Square Y) {
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for(int i=0; i < Y.size; i++)
         for(int j=0; j < Y.size; j++) {
             float sum = 0.0;
@@ -12,6 +12,34 @@ void convolution(Square X, Square W, Square Y) {
                 for(int l=0; l < W.size; l++) 
                     sum += W.mat[k][l] * X.mat[k+i][l+j];
             Y.mat[i][j] += sum;
+        }
+}
+
+void max_pool_conv_grad(Square X, Square Y, int* mem, int size) {
+    for(int i=0; i < Y.size; i++)
+        for(int j=0; j < Y.size; j++) {
+            float max = -INFINITY;
+            int mem_pos = j * 2 + i * Y.size;
+            for(int k=0; k < size; k++)
+                for(int l=0; l < size; l++)
+                    if (X.mat[k+i][l+j] > max) {
+                        max = X.mat[k+i][l+j];
+                        mem[mem_pos] = k+i;
+                        mem[mem_pos + 1] = l+j;
+                    }
+            Y.mat[i][j] = max;
+        }
+}
+
+void max_pool_conv(Square X, Square Y, int size) {
+    for(int i=0; i < Y.size; i++)
+        for(int j=0; j < Y.size; j++) {
+            float max = -INFINITY;
+            for(int k=0; k < size; k++)
+                for(int l=0; l < size; l++)
+                    if (X.mat[k+i][l+j] > max)
+                        max = X.mat[k+i][l+j];
+            Y.mat[i][j] = max;
         }
 }
 
@@ -145,11 +173,53 @@ Data1D* linear_backward(LinearLayer* layer, Data1D* dY) {
 }
 
 Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input) {
-    // TODO
+    int output_size = get_output_size(input->size, layer->size);
+    Data2D* output = CreateData2D(output_size, input->b, input->c);
+
+    if (layer->with_gradient) {
+        if (layer->mem != NULL) {
+            free(layer->mem);
+        }
+
+        layer->mem = (int*) malloc(sizeof(int) * 2 * output_size * output_size * input->c * input->b);
+        for (int i = 0; i < input->b; i++) {
+            int ii = i * 2 * output_size * output_size * input->c;
+            for (int j = 0; j < input->c; j++) {
+                int jj = j * 2 * output_size * output_size;
+                max_pool_conv_grad(input->data[i][j], output->data[i][j], &layer->mem[ii+jj], layer->size);
+            }
+        }
+    }
+    else {
+        for (int i = 0; i < input->b; i++) {
+            for (int j = 0; j < input->c; j++) {
+                max_pool_conv(input->data[i][j], output->data[i][j], layer->size);
+            }
+        }
+    }
+
+    return output;
 }
 
 Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY) {
-    // TODO
+    assert(layer->with_gradient && "This Max Pool Layer needs to be gradient enabled to perform backward pass");
+
+    Data2D* dX = CreateData2DZeros(get_input_size(dY->size, layer->size), dY->b, dY->c);
+
+    for (int i = 0; i < dY->b; i++) {
+        int ii = i * 2 * dY->size * dY->size * dY->c;
+        for (int j = 0; j < dY->c; j++) {
+            int jj = j * 2 * dY->size * dY->size;
+            for (int k = 0; k < dY->size; k++) {
+                for (int l = 0; l < dY->size; l++) {
+                    int kk = ii + jj + k * dY->size + l * 2;
+                    dX->data[i][j].mat[layer->mem[kk]][layer->mem[kk+1]] = dY->data[i][j].mat[k][l];
+                }
+            }
+        }
+    }
+
+    return dX;
 }
 
 Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
@@ -164,7 +234,7 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
             layer->X = CreateData2D(input->size, input->b, input->c);
         }
 
-        //#pragma omp parallel for
+        #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->c; j++) 
                 for (int k = 0; k < input->size; k++) 
@@ -180,7 +250,7 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
                     }
     }
     else {
-        // #pragma omp parallel for
+        #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->c; j++) 
                 for (int k = 0; k < input->size; k++) 
@@ -197,7 +267,7 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
 Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY) {
     assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
     
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < dY->b; i++)
         for (int j = 0; j < dY->c; j++) 
             for (int k = 0; k < dY->size; k++) 
@@ -219,7 +289,7 @@ Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
             layer->X = CreateData1D(input->n, input->b);
         }
 
-        // #pragma omp parallel for
+        #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->n; j++) 
                 if (input->mat[i][j] > 0) {
@@ -232,7 +302,7 @@ Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
                 }
     }
     else {
-        // #pragma omp parallel for
+        #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->n; j++) 
                 output->mat[i][j] = input->mat[i][j] > 0 ? 
@@ -246,7 +316,7 @@ Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
 Data1D* relu_1d_backward(ReLU1DLayer* layer, Data1D* dY) {
     assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
 
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < dY->b; i++)
         for (int j = 0; j < dY->n; j++) 
             if (layer->X->mat[i][j] == 0.0)
@@ -281,17 +351,22 @@ LossResult CrossEntropy(Data1D* y_hat, int* y) {
     result.dL = CopyData1D(y_hat);
     result.value = 0.0;
 
+    //print_data1d(y_hat);
+
     for (int i = 0; i < y_hat->b; i++) {
         sum = pred = tmp = 0.0;
         int gt = y[i];
         result.dL->mat[i][gt] -= 1.0;
+        //printf("GT: %d ", gt);
+
         for (int j = 0; j < y_hat->n; j++) {
             tmp = exp(y_hat->mat[i][j]);
+            //printf("%f ", tmp);
             sum += tmp;
-            if (j == gt) 
+            if (j == gt)
                 pred = tmp;
         }
-        //printf(" %f %f %f %f", sum, pred, tmp, pred/sum);
+        //printf(" Sum: %f Logit: %f\n\n", sum, pred/sum);
         result.value -= logf(pred/sum);
     }
 
@@ -304,7 +379,7 @@ LossResult CrossEntropy(Data1D* y_hat, int* y) {
 Data1D* flatten(Data2D* d2) {
     Data1D* d1 = CreateData1D(d2->c*d2->size*d2->size, d2->b);
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int k = 0; k < d2->b; k++) {
         Square* db2 = d2->data[k];
         float* db1 = d1->mat[k];
@@ -331,7 +406,7 @@ Data2D* unflatten(Data1D* d1, int channels) {
 
     Data2D* d2 = CreateData2D(size, d1->b, channels);
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int k = 0; k < d2->b; k++) {
         Square* db2 = d2->data[k];
         float* db1 = d1->mat[k];
@@ -367,17 +442,18 @@ void DestroyViewLayer(ViewLayer* node) {
     free(node);
 }
 
-MaxPoolLayer* CreateMaxPoolLayer(int size) {
+MaxPoolLayer* CreateMaxPoolLayer(int size, int with_gradient) {
     MaxPoolLayer* l = (MaxPoolLayer*) malloc(sizeof(MaxPoolLayer));
     l->size = size;
     l->node.type = MaxPool;
-    l->X = NULL;
+    l->mem = NULL;
+    l->with_gradient = with_gradient;
 
     return l;
 }
 
 void DestroyMaxPoolLayer(MaxPoolLayer* layer) {
-    if (layer->X != NULL) DestroyData2D(layer->X);
+    if (layer->mem != NULL) free(layer->mem);
     free(layer);
 }
 
@@ -437,7 +513,7 @@ void RandomInitLinearLayer(LinearLayer* l) {
 void LearnLinearLayer(LinearLayer* l, float learning_rate) {
     assert(l->dW != NULL && "Gradient was not calculated for this linear layer");
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < l->out; i++)
         for (int j = 0; j < l->in; j++) {
             l->w[i][j] -= l->dW[i][j] * learning_rate;
@@ -496,7 +572,7 @@ void RandomInitConvLayer(ConvLayer* c) {
 void LearnConvLayer(ConvLayer* c, float learning_rate) {
     assert(c->dW != NULL && "Gradient was not calculated for this conv layer");
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i=0; i<c->out; i++) 
         for (int j=0; j<c->in; j++)
             for(int k=0; k<c->size; k++)
@@ -534,3 +610,7 @@ void print_conv_layer(ConvLayer* layer) {
 int get_output_size(int input_size, int filter_size) {
     return input_size - filter_size + 1;
 } 
+
+int get_input_size(int output_size, int filter_size) {
+    return output_size + filter_size - 1;
+}
