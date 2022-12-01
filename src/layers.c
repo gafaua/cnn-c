@@ -1,9 +1,10 @@
 #include "layers.h"
 
+#define LR 0.00001
 
 // Y must be 0 init
 void convolution(Square X, Square W, Square Y) {
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i=0; i < Y.size; i++)
         for(int j=0; j < Y.size; j++) {
             float sum = 0.0;
@@ -92,7 +93,7 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
     }
 
     // Learn from the new gradients
-    LearnConvLayer(layer, 0.001);
+    LearnConvLayer(layer, LR);
 
     return dX;
 }
@@ -114,6 +115,7 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
     }
 
     Data1D* outputs = CreateData1D(layer->out, input->b);
+    init_matrix(outputs->mat, 0.0, outputs->b, outputs->n);
     matrix_mul_2d_T2(input->mat, layer->w, outputs->mat, input->b, layer->in, layer->out);
     return outputs;
 }
@@ -137,7 +139,7 @@ Data1D* linear_backward(LinearLayer* layer, Data1D* dY) {
     matrix_mul_2d_T1(dY->mat, layer->X->mat, layer->dW, layer->out, dY->b, layer->in);
 
     // Learn from the new gradients
-    LearnLinearLayer(layer, 0.001);
+    LearnLinearLayer(layer, LR);
 
     return dX;
 }
@@ -162,7 +164,7 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
             layer->X = CreateData2D(input->size, input->b, input->c);
         }
 
-        #pragma omp parallel for
+        //#pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->c; j++) 
                 for (int k = 0; k < input->size; k++) 
@@ -178,7 +180,7 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
                     }
     }
     else {
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->c; j++) 
                 for (int k = 0; k < input->size; k++) 
@@ -195,7 +197,7 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
 Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY) {
     assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
     
-    #pragma omp parallel for
+    // #pragma omp parallel for
     for (int i = 0; i < dY->b; i++)
         for (int j = 0; j < dY->c; j++) 
             for (int k = 0; k < dY->size; k++) 
@@ -217,7 +219,7 @@ Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
             layer->X = CreateData1D(input->n, input->b);
         }
 
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->n; j++) 
                 if (input->mat[i][j] > 0) {
@@ -230,21 +232,21 @@ Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
                 }
     }
     else {
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
             for (int j = 0; j < input->n; j++) 
                 output->mat[i][j] = input->mat[i][j] > 0 ? 
                                     input->mat[i][j] : 
                                     0.0;
     }
-    
+
     return output;
 }
 
 Data1D* relu_1d_backward(ReLU1DLayer* layer, Data1D* dY) {
     assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
 
-    #pragma omp parallel for
+    // #pragma omp parallel for
     for (int i = 0; i < dY->b; i++)
         for (int j = 0; j < dY->n; j++) 
             if (layer->X->mat[i][j] == 0.0)
@@ -271,19 +273,30 @@ float Identity(float val) {
 // @brief Computes the LogSoftmax of y_hat + Negative LogLikelihood with y
 // @param y_hat: output predictions of size [batch, num_classes]
 // @param y: indices of ground truth values of size [batch]
-float CrossEntropyForward(Data1D* y_hat, int* y) {
-    float loss = 0.0;
-    float sum, pred, tmp;
+// @returns LossResult containing loss value and 
+LossResult CrossEntropy(Data1D* y_hat, int* y) {
+    double sum, tmp, pred;
+
+    LossResult result;
+    result.dL = CopyData1D(y_hat);
+    result.value = 0.0;
+
     for (int i = 0; i < y_hat->b; i++) {
         sum = pred = tmp = 0.0;
+        int gt = y[i];
+        result.dL->mat[i][gt] -= 1.0;
         for (int j = 0; j < y_hat->n; j++) {
-            tmp = expf(y_hat->mat[i][j]);
+            tmp = exp(y_hat->mat[i][j]);
             sum += tmp;
-            if (j == y[i]) pred = tmp;
+            if (j == gt) 
+                pred = tmp;
         }
-        loss -= logf(pred/sum);
+        //printf(" %f %f %f %f", sum, pred, tmp, pred/sum);
+        result.value -= logf(pred/sum);
     }
-    return loss / y_hat->b;
+
+    result.value = result.value / y_hat->b;
+    return result;
 }
 
 // @param d: Data2D of shape [batch, channels, size, size]
@@ -291,7 +304,7 @@ float CrossEntropyForward(Data1D* y_hat, int* y) {
 Data1D* flatten(Data2D* d2) {
     Data1D* d1 = CreateData1D(d2->c*d2->size*d2->size, d2->b);
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int k = 0; k < d2->b; k++) {
         Square* db2 = d2->data[k];
         float* db1 = d1->mat[k];
@@ -318,7 +331,7 @@ Data2D* unflatten(Data1D* d1, int channels) {
 
     Data2D* d2 = CreateData2D(size, d1->b, channels);
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int k = 0; k < d2->b; k++) {
         Square* db2 = d2->data[k];
         float* db1 = d1->mat[k];
@@ -424,7 +437,7 @@ void RandomInitLinearLayer(LinearLayer* l) {
 void LearnLinearLayer(LinearLayer* l, float learning_rate) {
     assert(l->dW != NULL && "Gradient was not calculated for this linear layer");
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int i = 0; i < l->out; i++)
         for (int j = 0; j < l->in; j++) {
             l->w[i][j] -= l->dW[i][j] * learning_rate;
@@ -483,7 +496,7 @@ void RandomInitConvLayer(ConvLayer* c) {
 void LearnConvLayer(ConvLayer* c, float learning_rate) {
     assert(c->dW != NULL && "Gradient was not calculated for this conv layer");
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int i=0; i<c->out; i++) 
         for (int j=0; j<c->in; j++)
             for(int k=0; k<c->size; k++)

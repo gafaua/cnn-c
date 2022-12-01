@@ -26,9 +26,10 @@ int main(int argc,char** argv) {
     long long start, end; 
     start = timeInMilliseconds();
     // start timer. 
-    test_mnist_network();
+    // test_mnist_network();
     //test_network();
     //test_all();
+    test_linear_forward_backward();
 
     end = timeInMilliseconds();
     // print_data1d(inputs);

@@ -9,3 +9,4 @@ void test_network();
 void test_all();
 void test_conv2d_forward_backward();
 void test_mnist_network();
+void test_linear_forward_backward();

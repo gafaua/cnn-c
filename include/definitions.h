@@ -103,3 +103,8 @@ typedef struct ViewLayer {
     LayerNode node;
     int channels;   
 } ViewLayer;
+
+typedef struct LossResult {
+    float value;
+    Data1D* dL;
+} LossResult;

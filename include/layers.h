@@ -22,7 +22,7 @@ float ReLU(float val);
 float ReLU_backward(float val);
 float Identity(float val);
 
-float CrossEntropyForward(Data1D* y_hat, int* y);
+LossResult CrossEntropy(Data1D* y_hat, int* y);
 
 Data1D* flatten(Data2D* d);
 Data2D* unflatten(Data1D* d, int channels);
