@@ -1,6 +1,5 @@
 #include "layers.h"
-
-#define LR 0.000004
+#define LR 0.00001
 
 // Y must be 0 init
 void convolution(Square X, Square W, Square Y) {
@@ -20,25 +19,29 @@ void max_pool_conv_grad(Square X, Square Y, int* mem, int size) {
         for(int j=0; j < Y.size; j++) {
             float max = -INFINITY;
             int mem_pos = j * 2 + i * Y.size;
+            int ii = i * size;
+            int jj = j * size;
             for(int k=0; k < size; k++)
                 for(int l=0; l < size; l++)
-                    if (X.mat[k+i][l+j] > max) {
-                        max = X.mat[k+i][l+j];
-                        mem[mem_pos] = k+i;
-                        mem[mem_pos + 1] = l+j;
+                    if (X.mat[ii+k][jj+l] > max) {
+                        max = X.mat[ii+k][jj+l];
+                        mem[mem_pos] = ii+k;
+                        mem[mem_pos + 1] = jj+l;
                     }
             Y.mat[i][j] = max;
         }
 }
 
 void max_pool_conv(Square X, Square Y, int size) {
-    for(int i=0; i < Y.size; i++)
-        for(int j=0; j < Y.size; j++) {
+    for(int i=0; i < Y.size; i+=size)
+        for(int j=0; j < Y.size; j+=size) {
             float max = -INFINITY;
+            int ii = i * size;
+            int jj = j * size;
             for(int k=0; k < size; k++)
                 for(int l=0; l < size; l++)
-                    if (X.mat[k+i][l+j] > max)
-                        max = X.mat[k+i][l+j];
+                    if (X.mat[k+ii][l+jj] > max)
+                        max = X.mat[k+ii][l+jj];
             Y.mat[i][j] = max;
         }
 }
@@ -93,7 +96,7 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
 // @param layer: Convolutionnal layer, weights of dim [out_channels, in_channels, k_size, k_size]
 // @returns dX: Data2D, dim [batch, in_channels, size, size]
 // @returns layer.dW: dim [out_channels, in_channels, k_size, k_size]
-Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
+Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
     assert(layer->dW != NULL && "This convolutional layer wasn't initialized with the with_gradient flag");
     assert(layer->out == dY->c && "The gradient from the next layer doesn't have the same number of channels as the output channels of this convolutional layer");
     assert(layer->in == layer->X->c && "The input tensor given doesn't have the same number of channels as the input channels of this convolutional layer");
@@ -121,7 +124,7 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
     }
 
     // Learn from the new gradients
-    LearnConvLayer(layer, LR);
+    LearnConvLayer(layer, lr);
 
     return dX;
 }
@@ -131,7 +134,10 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY) {
     @param inputs: [batch_size, input_features]
     @returns outputs: [batch_size, output_features] */
 Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
-    assert(layer->in == input->n && "Invalid size of input data for linear layer");
+    if (layer->in != input->n) {
+        printf("[ERROR] Invalid size of input data for linear layer, layer: %d, input: %d\n", layer->in, input->n);
+        exit(1);
+    }
     
     if (layer->dW != NULL) {
         // Save inputs in layer.X
@@ -153,7 +159,7 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
 // @param layer.w: [output_features, input_features]
 // @returns dX: [batch_size, input_features]
 // @returns layer.dW: [output_features, input_features]
-Data1D* linear_backward(LinearLayer* layer, Data1D* dY) {
+Data1D* linear_backward(LinearLayer* layer, Data1D* dY, float lr) {
     assert(layer->dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
     assert(dY->n == layer->out && "The gradient from the next layer has not the same number of features than this layer");
     assert(dY->b == layer->X->b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
@@ -167,13 +173,13 @@ Data1D* linear_backward(LinearLayer* layer, Data1D* dY) {
     matrix_mul_2d_T1(dY->mat, layer->X->mat, layer->dW, layer->out, dY->b, layer->in);
 
     // Learn from the new gradients
-    LearnLinearLayer(layer, LR);
+    LearnLinearLayer(layer, lr);
 
     return dX;
 }
 
 Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input) {
-    int output_size = get_output_size(input->size, layer->size);
+    int output_size = input->size/layer->size;
     Data2D* output = CreateData2D(output_size, input->b, input->c);
 
     if (layer->with_gradient) {
@@ -204,7 +210,7 @@ Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input) {
 Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY) {
     assert(layer->with_gradient && "This Max Pool Layer needs to be gradient enabled to perform backward pass");
 
-    Data2D* dX = CreateData2DZeros(get_input_size(dY->size, layer->size), dY->b, dY->c);
+    Data2D* dX = CreateData2DZeros(dY->size * layer->size, dY->b, dY->c);
 
     for (int i = 0; i < dY->b; i++) {
         int ii = i * 2 * dY->size * dY->size * dY->c;
@@ -214,6 +220,7 @@ Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY) {
                 for (int l = 0; l < dY->size; l++) {
                     int kk = ii + jj + k * dY->size + l * 2;
                     dX->data[i][j].mat[layer->mem[kk]][layer->mem[kk+1]] = dY->data[i][j].mat[k][l];
+                    kk += 2;
                 }
             }
         }
@@ -345,31 +352,37 @@ float Identity(float val) {
 // @param y: indices of ground truth values of size [batch]
 // @returns LossResult containing loss value and 
 LossResult CrossEntropy(Data1D* y_hat, int* y) {
-    double sum, tmp, pred;
+    double sum, tmp, pred, max, idx;
 
     LossResult result;
     result.dL = CopyData1D(y_hat);
     result.value = 0.0;
 
     //print_data1d(y_hat);
-
+    int goods = 0;
     for (int i = 0; i < y_hat->b; i++) {
         sum = pred = tmp = 0.0;
         int gt = y[i];
         result.dL->mat[i][gt] -= 1.0;
         //printf("GT: %d ", gt);
-
+        max = -INFINITY;
+        idx = -1;
         for (int j = 0; j < y_hat->n; j++) {
+            if (y_hat->mat[i][j] > max) {
+                max = y_hat->mat[i][j];
+                idx = j;
+            }
             tmp = exp(y_hat->mat[i][j]);
             //printf("%f ", tmp);
             sum += tmp;
             if (j == gt)
                 pred = tmp;
         }
+        if (idx == gt) goods++;
         //printf(" Sum: %f Logit: %f\n\n", sum, pred/sum);
         result.value -= logf(pred/sum);
     }
-
+    printf("Good: %d/%d ", goods, y_hat->b);
     result.value = result.value / y_hat->b;
     return result;
 }

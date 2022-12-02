@@ -8,7 +8,7 @@ SRCDIR=src
 
 LIBS=-lm
 
-_DEPS = layers.h definitions.h data.h network.h tests.h
+_DEPS = layers.h definitions.h data.h network.h tests.h mnist.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 _OBJ = layers.o data.o network.o tests.o

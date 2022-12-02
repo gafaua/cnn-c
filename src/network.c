@@ -30,23 +30,19 @@ DataType* network_forward(Network* network, DataType* input) {
         switch (node->type)
         {
         case Linear:
-            printf("L");
             assert(*X == D1D && "The input of a Linear Layer must be a Data1D");
             output = (DataType*) linear_forward((LinearLayer*) node, (Data1D*) X);
             break;
         case Conv:
-            printf("C");
             assert(*X == D2D && "The input of a Conv Layer must be a Data2D");
             output = (DataType*) conv_forward((ConvLayer*) node, (Data2D*) X);
             break;
         case Flatten:
-            printf("F");
             assert(*X == D2D && "The input of a Flatten Layer must be a Data2D");
             output = (DataType*) flatten((Data2D*) X);
             DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
             break;
         case Unflatten:
-            printf("U");
             assert(*X == D1D && "The input of an Unflatten Layer must be a Data1D");
             assert(node->next != NULL && node->next->type == Conv &&"An Unflatten Layer must lead to a Conv Layer");
             int channels = ((ViewLayer*) node)->channels;
@@ -54,19 +50,16 @@ DataType* network_forward(Network* network, DataType* input) {
             DestroyData1D((Data1D*) X); // Destroy input since not used for backprop
             break;
         case ReLU1D:
-            printf("R1");
             assert(*X == D1D && "The input of a RELU1D Layer must be a Data1D");
             output = (DataType*) relu_1d_forward((ReLU1DLayer*) node, (Data1D*) X);
             DestroyData1D((Data1D*) X); // Destroy input since not used for backprop
             break;
         case ReLU2D:
-            printf("R2");
             assert(*X == D2D && "The input of a RELU2D Layer must be a Data2D");
             output = (DataType*) relu_2d_forward((ReLU2DLayer*) node, (Data2D*) X);
             DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
             break;
         case MaxPool:
-            printf("M");
             assert(*X == D2D && "The input of a MaxPool Layer must be a Data2D");
             output = (DataType*) max_pool_forward((MaxPoolLayer*) node, (Data2D*) X);
             DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
@@ -83,26 +76,23 @@ DataType* network_forward(Network* network, DataType* input) {
 }
 
 
-void network_backward(Network* network, DataType* dY) {
+void network_backward(Network* network, DataType* dY, float lr) {
     LayerNode* node = network->last;
     DataType* dX;
 
     while (node != NULL) {
         switch (node->type) {
         case Linear:
-            printf("L");
             assert(*dY == D1D && "The output of a Linear Layer must be a Data1D");
-            dX = (DataType*) linear_backward((LinearLayer*) node, (Data1D*) dY);
+            dX = (DataType*) linear_backward((LinearLayer*) node, (Data1D*) dY, lr);
             DestroyData1D((Data1D*) dY); // Last dY not useful anymore
             break;
         case Conv:
-            printf("C");
             assert(*dY == D2D && "The output of a Conv Layer must be a Data2D");
-            dX = (DataType*) conv_backward((ConvLayer*) node, (Data2D*) dY);
+            dX = (DataType*) conv_backward((ConvLayer*) node, (Data2D*) dY, lr);
             DestroyData2D((Data2D*) dY); // Last dY not useful anymore
             break;
         case Flatten:
-            printf("F");
             assert(*dY == D1D && "The output of a Flatten Layer must be a Data1D");
             assert(node->previous != NULL &&"A flatten Layer must follow a Conv Layer");
             int channels = ((ViewLayer*) node)->channels;
@@ -110,23 +100,19 @@ void network_backward(Network* network, DataType* dY) {
             DestroyData1D((Data1D*) dY); // Last dY not useful anymore
             break;
         case Unflatten:
-            printf("U");
             assert(*dY == D2D && "The output of an Unflatten Layer must be a Data2D");
             dX = (DataType*) flatten((Data2D*) dY);
             DestroyData2D((Data2D*) dY); // Last dY not useful anymore
             break;
         case ReLU1D:
-            printf("R1");
             assert(*dY == D1D && "The output of a ReLU1D Layer must be a Data1D");
             dX = (DataType*) relu_1d_backward((ReLU1DLayer*) node, (Data1D*) dY);
             break;
         case ReLU2D:
-            printf("R2");
             assert(*dY == D2D && "The output of a ReLU2D Layer must be a Data2D");
             dX = (DataType*) relu_2d_backward((ReLU2DLayer*) node, (Data2D*) dY);
             break;
         case MaxPool:
-            printf("M");
             assert(*dY == D2D && "The output of a MaxPool Layer must be a Data2D");
             dX = (DataType*) max_pool_backward((MaxPoolLayer*) node, (Data2D*) dY);
             DestroyData2D((Data2D*) dY);
@@ -178,21 +164,39 @@ void DestroyNetwork(Network* network) {
 
 Network* CreateNetworkMNIST(int with_gradients) {
     Network* net = CreateNetwork();
-    // Inputs: Data2D of size [b, 1, 28, 28]
-    AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 5, 5, with_gradients, TRUE));
+    // // Inputs: Data2D of size [b, 1, 28, 28]
+    // AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 32, 3, with_gradients, TRUE));
+    // AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
+    // // 26 ->
+    // AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, TRUE));
+    // // 13 ->
+    // AddToNetwork(net, (LayerNode*) CreateConvLayer(32, 64, 4, with_gradients, TRUE));
+    // AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
+    // // 10 ->
+    // AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, TRUE));
+    // // 5 ->
+    // AddToNetwork(net, (LayerNode*) CreateFlattenLayer(64));
+    // // 5 * 5 * 5
+    // AddToNetwork(net, (LayerNode*) CreateLinearLayer(64 * 5* 5, 10, with_gradients, TRUE));
+
+    // 28 ->
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 16, 5, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
-    // 24
-    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(5, TRUE));
-    // 20
-    AddToNetwork(net, (LayerNode*) CreateConvLayer(5, 10, 5, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, with_gradients));
+    // 12 ->
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(16, 32, 5, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
-    // 16
-    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(5, TRUE));
-    // 12
-    AddToNetwork(net, (LayerNode*) CreateFlattenLayer(10));
-    // 10 * 12 * 12
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(10 * 12 * 12, 100, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, with_gradients));
+    // 4 ->
+    AddToNetwork(net, (LayerNode*) CreateFlattenLayer(32));
+    // 4 * 4 * 32 ->
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(4*4*32, 120, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(100, 10, with_gradients, TRUE));
+    
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(120, 84, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
+
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(84, 10, with_gradients, TRUE));
+
     return net;
 }

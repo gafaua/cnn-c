@@ -4,10 +4,10 @@
 #include "data.h"
 
 Data2D* conv_forward(ConvLayer* layer, Data2D* input);
-Data2D* conv_backward(ConvLayer* layer, Data2D* dY);
+Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr);
 
 Data1D* linear_forward(LinearLayer* layer, Data1D* input);
-Data1D* linear_backward(LinearLayer* layer, Data1D* dY);
+Data1D* linear_backward(LinearLayer* layer, Data1D* dY, float lr);
 
 Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input);
 Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY);

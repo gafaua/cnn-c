@@ -32,13 +32,13 @@ void test_functions_memory() {
     Data1D* d1d_y = linear_forward(ll, d1d);
     printf("Ok\nTesting Linear Backward...");
     d1d_y->mat[0][0] = -1;
-    Data1D* d1d_y_ = linear_backward(ll, d1d_y);
+    Data1D* d1d_y_ = linear_backward(ll, d1d_y, 0.000001);
     printf("Ok\nTesting print Data1d...");
     print_data1d(d1d_y_);
     printf("Ok\nTesting Conv Forward...");
     Data2D* d2d_y = conv_forward(cl, d2d);
     printf("Ok\nTesting Conv Backward...");
-    Data2D* d2d_y_ = conv_backward(cl, d2d_y);
+    Data2D* d2d_y_ = conv_backward(cl, d2d_y, 0.000001);
     print_data2d(d2d_y_);
     printf("Ok\nTesting Flatten...");
     Data1D* d2d_flat = flatten(d2d_y_);
@@ -94,7 +94,7 @@ void test_network() {
         init_matrix(dY->mat, 1.0, dY->b ,dY->n);
         printf("Ok\nTesting Backward pass %d/%d...", i, epochs);
 
-        network_backward(net, (DataType*) dY);
+        network_backward(net, (DataType*) dY, 0.00001);
         DestroyData1D(outputs);
     }
 
@@ -130,7 +130,7 @@ void test_mnist_network() {
         LossResult loss = CrossEntropy(outputs, gt);
         printf(" Loss: %f", loss.value);
         printf("\nTesting Backward pass %d/%d...", i, num_batch);
-        network_backward(net, (DataType*) loss.dL);
+        network_backward(net, (DataType*) loss.dL, 0.000001);
         print_data1d(outputs);
         DestroyData1D(outputs);
     }
@@ -228,7 +228,7 @@ void test_conv2d_forward_backward() {
                 for(l=0; l<o_size; l++)
                     data_output->data[i][j].mat[l][k] = 1.0;
 
-    Data2D* dX = conv_backward(layer, data_output);
+    Data2D* dX = conv_backward(layer, data_output, 0.0);
 
     for (i=0; i<outs; i++) 
         for (j=0; j<ins; j++)
@@ -286,7 +286,7 @@ void test_linear_forward_backward() {
     Data1D* dY = CreateData1D(outs, batch);
     init_matrix(dY->mat, 1.0, batch, outs);
 
-    Data1D* dX = linear_backward(layer, dY);
+    Data1D* dX = linear_backward(layer, dY, 0.0);
 
     for(i=0; i<outs; i++)
         for(j=0; j<ins; j++)

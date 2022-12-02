@@ -51,7 +51,7 @@ void random_init_matrix(float** m, int h, int w) {
 
 // M1: [a, b] x M2: [b, c] -> R: [a, c]
 void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
-   // #pragma omp parallel for shared(M1,M2,R)
+   #pragma omp parallel for shared(M1,M2,R)
     for(int i = 0; i < a; i++) {
         for(int k = 0; k < b; k++) { 
             float* r = R[i];
@@ -66,7 +66,7 @@ void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c) {
 
 // M1T: [b, a] x M2: [b, c] -> R: [a, c]
 void matrix_mul_2d_T1(float** M1T, float** M2, float** R, int a, int b, int c) {
-    // #pragma omp parallel for shared(M1T,M2,R) collapse(2)
+    #pragma omp parallel for shared(M1T,M2,R) collapse(2)
     for(int k = 0; k < b; k++) { 
         for(int i = 0; i < a; i++) {
             float* m2 = M2[k];
@@ -81,7 +81,7 @@ void matrix_mul_2d_T1(float** M1T, float** M2, float** R, int a, int b, int c) {
 
 // M1: [a, b] x M2T: [c, b] -> R: [a, c]
 void matrix_mul_2d_T2(float** M1, float** M2T, float** R, int a, int b, int c) {
-    // #pragma omp parallel for shared(M1,M2T,R)
+    #pragma omp parallel for shared(M1,M2T,R)
     for(int i = 0; i < a; i++) {
         float* m1 = M1[i];
         for(int j = 0; j < c; j++) {
