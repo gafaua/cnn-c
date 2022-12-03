@@ -88,12 +88,30 @@ void read_mnist_char(char *file_path, int num_data, int len_info, int arr_n, uns
 }
 
 
-void image_char2float(int num_data, unsigned char data_image_char[][SIZE], float data_image[][SIZE])
+void norm_image_char2float(int num_data, unsigned char data_image_char[][SIZE], float data_image[][SIZE])
 {
     int i, j;
-    for (i=0; i<num_data; i++)
-        for (j=0; j<SIZE; j++)
-            data_image[i][j]  = (float)data_image_char[i][j] / 255.0;
+    double eps = 1e-7;
+    double mean, std, sum;
+
+    #pragma omp parallel for private(mean, std, sum, i, j) shared(data_image_char, data_image)
+    for (i=0; i<num_data; i++) {
+        sum = mean = std = 0.0;
+        for (j=0; j<SIZE; j++) {
+            sum += data_image_char[i][j];
+        }
+        mean = sum / SIZE;
+        for (j=0; j<SIZE; j++) {
+            std += pow(data_image_char[i][j] - mean, 2);
+            data_image[i][j] = data_image_char[i][j] - mean;
+        }
+
+        std = sqrt(std + eps);
+
+        for (j=0; j<SIZE; j++) {
+            data_image[i][j] /= std;
+        }
+    }
 }
 
 
@@ -108,10 +126,10 @@ void label_char2int(int num_data, unsigned char data_label_char[][1], int data_l
 void load_mnist()
 {
     read_mnist_char(TRAIN_IMAGE, NUM_TRAIN, LEN_INFO_IMAGE, SIZE, train_image_char, info_image);
-    image_char2float(NUM_TRAIN, train_image_char, train_image);
+    norm_image_char2float(NUM_TRAIN, train_image_char, train_image);
 
     read_mnist_char(TEST_IMAGE, NUM_TEST, LEN_INFO_IMAGE, SIZE, test_image_char, info_image);
-    image_char2float(NUM_TEST, test_image_char, test_image);
+    norm_image_char2float(NUM_TEST, test_image_char, test_image);
     
     read_mnist_char(TRAIN_LABEL, NUM_TRAIN, LEN_INFO_LABEL, 1, train_label_char, info_label);
     label_char2int(NUM_TRAIN, train_label_char, train_label);

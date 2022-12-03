@@ -190,13 +190,22 @@ Network* CreateNetworkMNIST(int with_gradients) {
     // 4 ->
     AddToNetwork(net, (LayerNode*) CreateFlattenLayer(32));
     // 4 * 4 * 32 ->
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(4*4*32, 120, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(4*4*32, 128, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
     
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(120, 84, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 256, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
 
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(84, 10, with_gradients, TRUE));
+    
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(256, 128, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
+
+    
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 64, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
+
+    
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(64, 10, with_gradients, TRUE));
 
     return net;
 }
