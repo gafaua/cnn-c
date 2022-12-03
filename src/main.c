@@ -118,7 +118,7 @@ int main(int argc,char** argv) {
     for (int i = 0; i < NUM_TRAIN; i++) indices[i] = i;
 
     Network* net = CreateNetworkMNIST(TRUE);
-    float lr = 1e-6;
+    float lr = 1e-7;
     int num_epoch = 5;
 
     for (int i = 0; i < num_epoch; i++)

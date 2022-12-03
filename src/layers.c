@@ -352,8 +352,8 @@ float Identity(float val) {
 // @param y: indices of ground truth values of size [batch]
 // @returns LossResult containing loss value and 
 LossResult CrossEntropy(Data1D* y_hat, int* y) {
-    double sum, tmp, pred, max, idx;
-
+    double sum, tmp, pred, max;
+    int idx;
     LossResult result;
     result.dL = CopyData1D(y_hat);
     result.value = 0.0;
