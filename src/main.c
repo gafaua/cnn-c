@@ -63,7 +63,7 @@ void shuffle(int *arr, size_t n)
 }
 
 void train_epoch(Network* net, float lr, int* indices) {
-    int batch = 32;
+    int batch = 64;
     int num_batch = NUM_TRAIN / batch;
     
     long long checkpoint; 

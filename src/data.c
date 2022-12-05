@@ -41,12 +41,23 @@ void init_matrix(float** m, float val, int h, int w) {
             m[i][j] = val;
 }
 
+void init_vector(float* m, float val, int h) {
+    for (int i = 0; i < h; i++)
+        m[i] = val;
+}
+
 // Initialize matrix with weight in range [-0.5,0.5]
 void random_init_matrix(float** m, int h, int w) {
     for (int i = 0; i < h; i++)
         for (int j = 0; j < w; j++) {
             m[i][j] = (float)(rand() - RAND_MAX/2)/(float)RAND_MAX;
         }
+}
+
+// Initialize vector with weight in range [-0.5,0.5]
+void random_init_vector(float* m, int h) {
+    for (int i = 0; i < h; i++)
+        m[i] = (float)(rand() - RAND_MAX/2)/(float)RAND_MAX;
 }
 
 // M1: [a, b] x M2: [b, c] -> R: [a, c]

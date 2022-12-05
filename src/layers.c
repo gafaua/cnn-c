@@ -150,7 +150,14 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
 
     Data1D* outputs = CreateData1D(layer->out, input->b);
     init_matrix(outputs->mat, 0.0, outputs->b, outputs->n);
+    
     matrix_mul_2d_T2(input->mat, layer->w, outputs->mat, input->b, layer->in, layer->out);
+
+    #pragma omp parallel for
+    for (int i = 0; i < input->b; i++)
+        for (int j = 0; j < layer->out; j++)
+            outputs->mat[i][j] += layer->b[j];
+
     return outputs;
 }
 
@@ -165,12 +172,24 @@ Data1D* linear_backward(LinearLayer* layer, Data1D* dY, float lr) {
     assert(dY->b == layer->X->b && "The gradient from the next layer is not computed for the same number of batch than the input of this layer");
 
     Data1D* dX = CreateData1D(layer->X->n, layer->X->b);
+    
+    // Zero grad
     init_matrix(dX->mat, 0.0, dX->b, dX->n);
-    init_matrix(layer->dW, 0.0, layer->out, layer->in);
+    for (int i = 0; i < layer->out; i++) {
+        layer->db[i] = 0.0;
+        for (int j = 0; j < layer->in; j++)
+            layer->dW[i][j] = 0.0;
+    }
+
     // dX = dY * layer.w
     matrix_mul_2d(dY->mat, layer->w, dX->mat, dX->b, layer->out, dX->n);
     // dW = dY.T * X
     matrix_mul_2d_T1(dY->mat, layer->X->mat, layer->dW, layer->out, dY->b, layer->in);
+    // db = ones * dY
+    #pragma omp parallel for
+    for (int i = 0; i < dY->b; i++)
+        for (int j = 0; j < dY->n; j++)
+            layer->db[j] += dY->mat[i][j];
 
     // Learn from the new gradients
     LearnLinearLayer(layer, lr);
@@ -502,10 +521,12 @@ void DestroyReLU2DLayer(ReLU2DLayer* layer) {
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random) {
     LinearLayer* l = (LinearLayer*) malloc(sizeof(LinearLayer));
     l->w = fmatrix_allocate_2d(out, in);
+    l->b = (float*) malloc(sizeof(float)*out);
     l->in = in;
     l->out = out;
 
     l->dW = with_gradient ? fmatrix_allocate_2d(out, in) : NULL;
+    l->db = with_gradient ? (float*) malloc(sizeof(float)*out) : NULL;
     l->X = NULL;
 
     l->node.next = NULL;
@@ -521,21 +542,25 @@ LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random) {
 
 void RandomInitLinearLayer(LinearLayer* l) {
     random_init_matrix(l->w, l->out, l->in);
+    random_init_vector(l->b, l->out);
 }
 
 void LearnLinearLayer(LinearLayer* l, float learning_rate) {
     assert(l->dW != NULL && "Gradient was not calculated for this linear layer");
 
     #pragma omp parallel for
-    for (int i = 0; i < l->out; i++)
-        for (int j = 0; j < l->in; j++) {
+    for (int i = 0; i < l->out; i++) {
+        l->b[i] -= l->db[i] * learning_rate;
+        for (int j = 0; j < l->in; j++) 
             l->w[i][j] -= l->dW[i][j] * learning_rate;
-        }
+    }
 }
 
 void DestroyLinearLayer(LinearLayer* layer) {
     free_fmatrix_2d(layer->w);
+    free(layer->b);
     if (layer->dW != NULL) free_fmatrix_2d(layer->dW);
+    if (layer->db != NULL) free(layer->db);
     if (layer->X != NULL) DestroyData1D(layer->X);
     layer->w = NULL;
     layer->dW = NULL;
