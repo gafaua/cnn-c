@@ -376,9 +376,9 @@ LossResult CrossEntropy(Data1D* y_hat, int* y) {
     LossResult result;
     result.dL = CopyData1D(y_hat);
     result.value = 0.0;
+    result.accuracy = 0.0;
 
     //print_data1d(y_hat);
-    int goods = 0;
     for (int i = 0; i < y_hat->b; i++) {
         sum = pred = tmp = 0.0;
         int gt = y[i];
@@ -397,11 +397,12 @@ LossResult CrossEntropy(Data1D* y_hat, int* y) {
             if (j == gt)
                 pred = tmp;
         }
-        if (idx == gt) goods++;
+        if (idx == gt) result.accuracy++;
         //printf(" Sum: %f Logit: %f\n\n", sum, pred/sum);
         result.value -= logf(pred/sum);
     }
-    printf("Good: %d/%d ", goods, y_hat->b);
+
+    result.accuracy = result.accuracy / y_hat->b;
     result.value = result.value / y_hat->b;
     return result;
 }

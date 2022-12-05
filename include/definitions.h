@@ -109,5 +109,6 @@ typedef struct ViewLayer {
 
 typedef struct LossResult {
     float value;
+    float accuracy;
     Data1D* dL;
 } LossResult;

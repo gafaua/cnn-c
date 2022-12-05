@@ -75,10 +75,12 @@ void train_epoch(Network* net, float lr, int* indices) {
     LossResult loss;
     setbuf(stdout, NULL);
 
-    checkpoint = timeInMilliseconds();
     float loss_sum = 0.0;
+    float acc_sum = 0.0;
     int cnt = 0;
     long long eta;
+    checkpoint = timeInMilliseconds();
+
     for (int i = 0; i < num_batch; i++) {
         printf("\rLoading -> ");
         load_batch(inputs, gt, i, batch, train_image, train_label, indices);
@@ -94,10 +96,12 @@ void train_epoch(Network* net, float lr, int* indices) {
         DestroyData1D(outputs);
         if (loss.value != INFINITY) {
             loss_sum += loss.value;
+            acc_sum += loss.accuracy;
             cnt++;
         }
+
         eta = ((num_batch - i - 1) * (timeInMilliseconds() - checkpoint )) / 1000;
-        printf(" [%d/%d] | eta: %llds | loss: %f (%f)", i, num_batch, eta, loss.value, loss_sum / cnt);
+        printf(" [%d/%d] | eta: %llds | loss: %f (%f) | acc: %f (%f)", i, num_batch, eta, loss.value, loss_sum / cnt, loss.accuracy, acc_sum / cnt);
         checkpoint = timeInMilliseconds();
     }
 }
