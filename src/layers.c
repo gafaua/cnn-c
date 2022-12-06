@@ -85,6 +85,7 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
             Square out = output->data[i][j];
             for (k = 0; k < input->c; k++)
                 convolution(in[k], kernels[k], out);
+            add_to_square(out, layer->b[j]);
         }
     }
 
@@ -105,9 +106,11 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
 
     // Clear gradients
     Data2D* dX = CreateData2DZeros(layer->X->size, layer->X->b, layer->X->c);
-    for (i = 0; i < layer->out; i++)
+    for (i = 0; i < layer->out; i++) {
+        layer->db[i] = 0.0;
         for (j = 0; j < layer->in; j++)
             init_square(layer->dW[i][j], 0.0);
+    }
 
     // Compute new gradients
     for (k = 0; k < layer->X->b; k++) {
@@ -119,6 +122,7 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
             Square* dWOut = layer->dW[i];
             for (j = 0; j < layer->in; j++) {
                 deconvolution(dYb[i], Xb[j], dXb[j], kernels[j], dWOut[j]);
+                layer->db[i] += sum_square(dWOut[j]);
             }
         }
     }
@@ -248,7 +252,89 @@ Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY) {
     return dX;
 }
 
-Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
+Data2D* tanh_2d_forward(Activation2DLayer* layer, Data2D* input) {
+    Data2D* output = CreateData2D(input->size, input->b, input->c);
+
+    if (layer->with_gradient) {
+        if (layer->X == NULL) {
+            layer->X = CreateData2D(input->size, input->b, input->c);
+        }
+        else if (layer->X != NULL && (layer->X->b != input->b || layer->X->c != input->c || layer->X->size != input->size)) {
+            DestroyData2D(layer->X);
+            layer->X = CreateData2D(input->size, input->b, input->c);
+        }
+
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->c; j++) 
+                for (int k = 0; k < input->size; k++) 
+                    for (int l = 0; l < input->size; l++)
+                        output->data[i][j].mat[k][l] = layer->X->data[i][j].mat[k][l] = tanhf(input->data[i][j].mat[k][l]);
+    }
+    else {
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->c; j++) 
+                for (int k = 0; k < input->size; k++) 
+                    for (int l = 0; l < input->size; l++) 
+                        output->data[i][j].mat[k][l] = tanhf(input->data[i][j].mat[k][l]);
+    }
+
+    return output;
+}
+
+Data2D* tanh_2d_backward(Activation2DLayer* layer, Data2D* dY) {
+    assert(layer->with_gradient && "Can't perform backward pass on this tanh layer without gradient");
+    
+    #pragma omp parallel for
+    for (int i = 0; i < dY->b; i++)
+        for (int j = 0; j < dY->c; j++) 
+            for (int k = 0; k < dY->size; k++) 
+                for (int l = 0; l < dY->size; l++) {
+                    dY->data[i][j].mat[k][l] *= (1 - powf(layer->X->data[i][j].mat[k][l], 2));
+                }
+
+    return dY;
+}
+
+Data1D* tanh_1d_forward(Activation1DLayer* layer, Data1D* input) {
+    Data1D* output = CreateData1D(input->n, input->b);
+
+    if (layer->with_gradient) {
+        if (layer->X == NULL) 
+            layer->X = CreateData1D(input->n, input->b);
+        else if (layer->X != NULL && (layer->X->b != input->b || layer->X->n != input->n)) {
+            DestroyData1D(layer->X);
+            layer->X = CreateData1D(input->n, input->b);
+        }
+
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->n; j++)
+                output->mat[i][j] = layer->X->mat[i][j] = tanhf(input->mat[i][j]);
+    }
+    else {
+        #pragma omp parallel for
+        for (int i = 0; i < input->b; i++)
+            for (int j = 0; j < input->n; j++) 
+                output->mat[i][j] = tanhf(input->mat[i][j]);
+    }
+
+    return output;
+}
+
+Data1D* tanh_1d_backward(Activation1DLayer* layer, Data1D* dY) {
+    assert(layer->with_gradient && "Can't perform backward pass on tanh relu layer without gradient");
+
+    #pragma omp parallel for
+    for (int i = 0; i < dY->b; i++)
+        for (int j = 0; j < dY->n; j++) 
+            dY->mat[i][j] *= (1 - powf(layer->X->mat[i][j], 2));
+
+    return dY;
+}
+
+Data2D* relu_2d_forward(Activation2DLayer* layer, Data2D* input) {
     Data2D* output = CreateData2D(input->size, input->b, input->c);
 
     if (layer->with_gradient) {
@@ -270,6 +356,8 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
                             layer->X->data[i][j].mat[k][l] = 1.0;
                         } 
                         else {
+                            // output->data[i][j].mat[k][l] = 0.0001*input->data[i][j].mat[k][l];
+                            // layer->X->data[i][j].mat[k][l] = 0.0001;
                             output->data[i][j].mat[k][l] = 0.0;
                             layer->X->data[i][j].mat[k][l] = 0.0;
                         }
@@ -278,19 +366,19 @@ Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input) {
     else {
         #pragma omp parallel for
         for (int i = 0; i < input->b; i++)
-            for (int j = 0; j < input->c; j++) 
-                for (int k = 0; k < input->size; k++) 
+            for (int j = 0; j < input->c; j++)
+                for (int k = 0; k < input->size; k++)
                     for (int l = 0; l < input->size; l++) {
                         output->data[i][j].mat[k][l] = input->data[i][j].mat[k][l] > 0 ?
                                                        input->data[i][j].mat[k][l] :
-                                                       0.0;
+                                                       0.0001*input->data[i][j].mat[k][l];
                     }
     }
     
     return output;
 }
 
-Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY) {
+Data2D* relu_2d_backward(Activation2DLayer* layer, Data2D* dY) {
     assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
     
     #pragma omp parallel for
@@ -298,13 +386,12 @@ Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY) {
         for (int j = 0; j < dY->c; j++) 
             for (int k = 0; k < dY->size; k++) 
                 for (int l = 0; l < dY->size; l++)
-                    if (layer->X->data[i][j].mat[k][l] == 0.0)
-                        dY->data[i][j].mat[k][l] = 0.0;
+                    dY->data[i][j].mat[k][l] *= layer->X->data[i][j].mat[k][l];
     
     return dY;
 }
 
-Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
+Data1D* relu_1d_forward(Activation1DLayer* layer, Data1D* input) {
     Data1D* output = CreateData1D(input->n, input->b);
 
     if (layer->with_gradient) {
@@ -323,8 +410,8 @@ Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
                     layer->X->mat[i][j] = 1.0;
                 } 
                 else {
-                    output->mat[i][j] = 0.0;
-                    layer->X->mat[i][j] = 0.0;
+                    output->mat[i][j] = 0.0001 * input->mat[i][j];
+                    layer->X->mat[i][j] = 0.0001;
                 }
     }
     else {
@@ -333,20 +420,19 @@ Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input) {
             for (int j = 0; j < input->n; j++) 
                 output->mat[i][j] = input->mat[i][j] > 0 ? 
                                     input->mat[i][j] : 
-                                    0.0;
+                                    0.0001 * input->mat[i][j];
     }
 
     return output;
 }
 
-Data1D* relu_1d_backward(ReLU1DLayer* layer, Data1D* dY) {
+Data1D* relu_1d_backward(Activation1DLayer* layer, Data1D* dY) {
     assert(layer->with_gradient && "Can't perform backward pass on this relu layer without gradient");
 
     #pragma omp parallel for
     for (int i = 0; i < dY->b; i++)
         for (int j = 0; j < dY->n; j++) 
-            if (layer->X->mat[i][j] == 0.0)
-                dY->mat[i][j] = 0.0;
+            dY->mat[i][j] *= layer->X->mat[i][j];
     
     return dY;
 }
@@ -374,33 +460,56 @@ LossResult CrossEntropy(Data1D* y_hat, int* y) {
     double sum, tmp, pred, max;
     int idx;
     LossResult result;
-    result.dL = CopyData1D(y_hat);
+    result.dL = CreateData1D(y_hat->n, y_hat->b);
+    init_matrix(result.dL->mat, 0.0, result.dL->b, result.dL->n);
     result.value = 0.0;
     result.accuracy = 0.0;
+    float eps = 1e-7;
 
-    //print_data1d(y_hat);
+    // print_data1d(y_hat);
+    // Compute softmax in dL
     for (int i = 0; i < y_hat->b; i++) {
-        sum = pred = tmp = 0.0;
-        int gt = y[i];
-        result.dL->mat[i][gt] -= 1.0;
-        //printf("GT: %d ", gt);
-        max = -INFINITY;
-        idx = -1;
+        sum = eps;
         for (int j = 0; j < y_hat->n; j++) {
-            if (y_hat->mat[i][j] > max) {
-                max = y_hat->mat[i][j];
-                idx = j;
-            }
-            tmp = exp(y_hat->mat[i][j]);
-            //printf("%f ", tmp);
-            sum += tmp;
-            if (j == gt)
-                pred = tmp;
+            result.dL->mat[i][j] = exp(y_hat->mat[i][j]);
+            sum += result.dL->mat[i][j];
         }
-        if (idx == gt) result.accuracy++;
-        //printf(" Sum: %f Logit: %f\n\n", sum, pred/sum);
-        result.value -= logf(pred/sum);
+        //printf("Softmax b4: \n");
+        //print_data1d(result.dL);
+
+        for (int j = 0; j < y_hat->n; j++)
+            result.dL->mat[i][j] /= sum;
+
+        result.value -= logf(result.dL->mat[i][y[i]]+eps);
+        if (argmax_vector(result.dL->mat[i], y_hat->n) == y[i])
+            result.accuracy++;
+        //printf("Softmax: \n");
+        result.dL->mat[i][y[i]] -= 1.0;
     }
+    //print_data1d(result.dL);
+
+    // for (int i = 0; i < y_hat->b; i++) {
+    //     sum = pred = tmp = 0.0;
+    //     int gt = y[i];
+    //     result.dL->mat[i][gt] -= 1.0;
+    //     //printf("GT: %d ", gt);
+    //     max = -INFINITY;
+    //     idx = -1;
+    //     for (int j = 0; j < y_hat->n; j++) {
+    //         if (y_hat->mat[i][j] > max) {
+    //             max = y_hat->mat[i][j];
+    //             idx = j;
+    //         }
+    //         tmp = exp(y_hat->mat[i][j]);
+    //         //printf("%f ", tmp);
+    //         sum += tmp;
+    //         if (j == gt)
+    //             pred = tmp;
+    //     }
+    //     if (idx == gt) result.accuracy++;
+    //     //printf(" Sum: %f Logit: %f\n\n", sum, pred/sum);
+    //     result.value -= logf(pred/sum);
+    // }
 
     result.accuracy = result.accuracy / y_hat->b;
     result.value = result.value / y_hat->b;
@@ -490,8 +599,8 @@ void DestroyMaxPoolLayer(MaxPoolLayer* layer) {
     free(layer);
 }
 
-ReLU1DLayer* CreateReLU1DLayer(int with_gradient) {
-    ReLU1DLayer* l = (ReLU1DLayer*) malloc(sizeof(ReLU1DLayer));
+Activation1DLayer* CreateReLU1DLayer(int with_gradient) {
+    Activation1DLayer* l = (Activation1DLayer*) malloc(sizeof(Activation1DLayer));
     l->node.type = ReLU1D;
     l->X = NULL;
     l->with_gradient = with_gradient;
@@ -499,13 +608,22 @@ ReLU1DLayer* CreateReLU1DLayer(int with_gradient) {
     return l;
 }
 
-void DestroyReLU1DLayer(ReLU1DLayer* layer) {
+Activation1DLayer* CreateTanh1DLayer(int with_gradient) {
+    Activation1DLayer* l = (Activation1DLayer*) malloc(sizeof(Activation1DLayer));
+    l->node.type = Tanh1D;
+    l->X = NULL;
+    l->with_gradient = with_gradient;
+
+    return l;
+}
+
+void DestroyActivation1DLayer(Activation1DLayer* layer) {
     if (layer->X != NULL) DestroyData1D(layer->X);
     free(layer);
 }
 
-ReLU2DLayer* CreateReLU2DLayer(int with_gradient) {
-    ReLU2DLayer* l = (ReLU2DLayer*) malloc(sizeof(ReLU2DLayer));
+Activation2DLayer* CreateReLU2DLayer(int with_gradient) {
+    Activation2DLayer* l = (Activation2DLayer*) malloc(sizeof(Activation2DLayer));
     l->node.type = ReLU2D;
     l->X = NULL;
     l->with_gradient = with_gradient;
@@ -513,11 +631,19 @@ ReLU2DLayer* CreateReLU2DLayer(int with_gradient) {
     return l;
 }
 
-void DestroyReLU2DLayer(ReLU2DLayer* layer) {
+Activation2DLayer* CreateTanh2DLayer(int with_gradient) {
+    Activation2DLayer* l = (Activation2DLayer*) malloc(sizeof(Activation2DLayer));
+    l->node.type = Tanh2D;
+    l->X = NULL;
+    l->with_gradient = with_gradient;
+
+    return l;
+}
+
+void DestroyActivation2DLayer(Activation2DLayer* layer) {
     if (layer->X != NULL) DestroyData2D(layer->X);
     free(layer);
 }
-
 
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random) {
     LinearLayer* l = (LinearLayer*) malloc(sizeof(LinearLayer));
@@ -571,7 +697,9 @@ void DestroyLinearLayer(LinearLayer* layer) {
 ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient, int random) {
     ConvLayer* c = (ConvLayer*) malloc(sizeof(ConvLayer));
     c->w = square_allocate_2d(out_channels, in_channels);
+    c->b = (float*) malloc(sizeof(float)*out_channels);
     c->dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
+    c->db = with_gradient ? (float*) malloc(sizeof(float)*out_channels) : NULL;
     c->X = NULL;
 
     for (int i=0; i<out_channels; i++) 
@@ -601,6 +729,9 @@ ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with
 
 void RandomInitConvLayer(ConvLayer* c) {
     int size = c->size;
+
+    random_init_vector(c->b, c->out);
+
     for (int i=0; i < c->out; i++) {
         for (int j=0; j < c->in; j++) {
             random_init_matrix(c->w[i][j].mat, size, size);
@@ -612,11 +743,13 @@ void LearnConvLayer(ConvLayer* c, float learning_rate) {
     assert(c->dW != NULL && "Gradient was not calculated for this conv layer");
 
     #pragma omp parallel for
-    for (int i=0; i<c->out; i++) 
+    for (int i=0; i<c->out; i++) {
+        c->b[i] -= c->db[i] * learning_rate;
         for (int j=0; j<c->in; j++)
             for(int k=0; k<c->size; k++)
                 for(int l=0; l<c->size; l++)
                     c->w[i][j].mat[k][l] -= c->dW[i][j].mat[k][l] * learning_rate;
+    }
 }
 
 void DestroyConvLayer(ConvLayer* c) {
@@ -629,12 +762,14 @@ void DestroyConvLayer(ConvLayer* c) {
         }
     free(c->w[0]);
     free(c->w);
+    free(c->b);
     c->w = NULL;
     if (c->dW != NULL) {
         free(c->dW[0]);
         free(c->dW);
         c->dW = NULL;
     }
+    if (c->db != NULL) free(c->db);
     if (c->X != NULL) DestroyData2D(c->X);
 
     free(c);

@@ -62,12 +62,10 @@ void shuffle(int *arr, size_t n)
     }
 }
 
-void train_epoch(Network* net, float lr, int* indices) {
-    int batch = 64;
+void train_epoch(Network* net, float lr, int* indices, int epoch) {
+    int batch = 8;
     int num_batch = NUM_TRAIN / batch;
     
-    long long checkpoint; 
-
     Data2D* inputs = CreateData2D(28, batch, 1);
     int* gt = (int*) malloc(sizeof(int) * batch);
 
@@ -77,12 +75,14 @@ void train_epoch(Network* net, float lr, int* indices) {
 
     float loss_sum = 0.0;
     float acc_sum = 0.0;
+    float time_elapsed = 0;
     int cnt = 0;
     long long eta;
-    checkpoint = timeInMilliseconds();
+    int min, s;
+    long long start = timeInMilliseconds();
 
     for (int i = 0; i < num_batch; i++) {
-        printf("\rLoading -> ");
+        printf("\r[%d] Train: Loading -> ", epoch);
         load_batch(inputs, gt, i, batch, train_image, train_label, indices);
 
         printf("Forward -> ");
@@ -100,9 +100,55 @@ void train_epoch(Network* net, float lr, int* indices) {
             cnt++;
         }
 
-        eta = ((num_batch - i - 1) * (timeInMilliseconds() - checkpoint )) / 1000;
-        printf(" [%d/%d] | eta: %llds | loss: %f (%f) | acc: %f (%f)", i, num_batch, eta, loss.value, loss_sum / cnt, loss.accuracy, acc_sum / cnt);
-        checkpoint = timeInMilliseconds();
+        time_elapsed = (timeInMilliseconds() - start) / 1000;
+        eta = ((num_batch - i - 1) * (time_elapsed/(i+1)));
+        printf(" [%d/%d] | [ETA %2d min %2d s > %2d min %2d s] | loss: %f (%f) | acc: %f (%f)", i, num_batch, (int)eta/60, (int)eta%60, (int)time_elapsed/60, (int)time_elapsed%60, loss.value, loss_sum / cnt, loss.accuracy, acc_sum / cnt);
+    }
+}
+
+
+void test_epoch(Network* net, int epoch) {
+    int batch = 100;
+    int num_batch = NUM_TEST / batch;
+    
+    Data2D* inputs = CreateData2D(28, batch, 1);
+    int* gt = (int*) malloc(sizeof(int) * batch);
+
+    Data1D* outputs;
+    LossResult loss;
+    setbuf(stdout, NULL);
+
+    float loss_sum = 0.0;
+    float acc_sum = 0.0;
+    float time_elapsed = 0;
+    int cnt = 0;
+    long long eta;
+    int min, s;
+    long long start = timeInMilliseconds();
+
+    int* indices = (int*) malloc(sizeof(int)*NUM_TEST);
+    for (int i = 0; i < NUM_TEST; i++) indices[i] = i;
+
+    for (int i = 0; i < num_batch; i++) {
+        printf("\r[%d] Test: Loading -> ", epoch);
+        load_batch(inputs, gt, i, batch, test_image, test_label, indices);
+
+        printf("Forward -> ");
+        outputs = (Data1D*) network_forward(net, (DataType*) inputs);
+
+        loss = CrossEntropy(outputs, gt);
+
+        DestroyData1D(outputs);
+
+        if (loss.value != INFINITY) {
+            loss_sum += loss.value;
+            acc_sum += loss.accuracy;
+            cnt++;
+        }
+
+        time_elapsed = (timeInMilliseconds() - start) / 1000;
+        eta = ((num_batch - i - 1) * (time_elapsed/(i+1)));
+        printf(" [%d/%d] | [ETA %2d min %2d s > %2d min %2d s] | loss: %f (%f) | acc: %f (%f)", i, num_batch, (int)eta/60, (int)eta%60, (int)time_elapsed/60, (int)time_elapsed%60, loss.value, loss_sum / cnt, loss.accuracy, acc_sum / cnt);
     }
 }
 
@@ -122,18 +168,21 @@ int main(int argc,char** argv) {
     for (int i = 0; i < NUM_TRAIN; i++) indices[i] = i;
 
     Network* net = CreateNetworkMNIST(TRUE);
-    float lr = 1e-6;
-    int num_epoch = 5;
+    float lr = 1e-5;
+    int num_epoch = 10;
 
     for (int i = 0; i < num_epoch; i++)
     {
         shuffle(indices, NUM_TRAIN);
 
-        train_epoch(net, lr, indices);
-        lr *= 0.8;
+        train_epoch(net, lr, indices, i+1);
+        printf("\n");
+        test_epoch(net, i+1);
+        
+        lr *= 0.7;
         printf("\n");
     }
-    
+
     // save image of first data in test dataset as .pgm file
     //save_mnist_pgm(train_image, test);
 
@@ -150,4 +199,5 @@ int main(int argc,char** argv) {
     printf("Time taken for processing: %lld ms.\n", time_taken);
 
     printf("Done.\n");
+    return 0;
 }

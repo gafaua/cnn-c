@@ -51,12 +51,22 @@ DataType* network_forward(Network* network, DataType* input) {
             break;
         case ReLU1D:
             assert(*X == D1D && "The input of a RELU1D Layer must be a Data1D");
-            output = (DataType*) relu_1d_forward((ReLU1DLayer*) node, (Data1D*) X);
+            output = (DataType*) relu_1d_forward((Activation1DLayer*) node, (Data1D*) X);
             DestroyData1D((Data1D*) X); // Destroy input since not used for backprop
             break;
         case ReLU2D:
             assert(*X == D2D && "The input of a RELU2D Layer must be a Data2D");
-            output = (DataType*) relu_2d_forward((ReLU2DLayer*) node, (Data2D*) X);
+            output = (DataType*) relu_2d_forward((Activation2DLayer*) node, (Data2D*) X);
+            DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
+            break;
+        case Tanh1D:
+            assert(*X == D1D && "The input of a Tanh1D Layer must be a Data1D");
+            output = (DataType*) tanh_1d_forward((Activation1DLayer*) node, (Data1D*) X);
+            DestroyData1D((Data1D*) X); // Destroy input since not used for backprop
+            break;
+        case Tanh2D:
+            assert(*X == D2D && "The input of a Tanh2D Layer must be a Data2D");
+            output = (DataType*) tanh_2d_forward((Activation2DLayer*) node, (Data2D*) X);
             DestroyData2D((Data2D*) X); // Destroy input since not used for backprop
             break;
         case MaxPool:
@@ -106,11 +116,19 @@ void network_backward(Network* network, DataType* dY, float lr) {
             break;
         case ReLU1D:
             assert(*dY == D1D && "The output of a ReLU1D Layer must be a Data1D");
-            dX = (DataType*) relu_1d_backward((ReLU1DLayer*) node, (Data1D*) dY);
+            dX = (DataType*) relu_1d_backward((Activation1DLayer*) node, (Data1D*) dY);
             break;
         case ReLU2D:
             assert(*dY == D2D && "The output of a ReLU2D Layer must be a Data2D");
-            dX = (DataType*) relu_2d_backward((ReLU2DLayer*) node, (Data2D*) dY);
+            dX = (DataType*) relu_2d_backward((Activation2DLayer*) node, (Data2D*) dY);
+            break;
+        case Tanh1D:
+            assert(*dY == D1D && "The output of a Tanh1D Layer must be a Data1D");
+            dX = (DataType*) tanh_1d_backward((Activation1DLayer*) node, (Data1D*) dY);
+            break;
+        case Tanh2D:
+            assert(*dY == D2D && "The output of a Tanh2D Layer must be a Data2D");
+            dX = (DataType*) tanh_2d_backward((Activation2DLayer*) node, (Data2D*) dY);
             break;
         case MaxPool:
             assert(*dY == D2D && "The output of a MaxPool Layer must be a Data2D");
@@ -135,8 +153,7 @@ void DestroyNetwork(Network* network) {
     while (node != NULL) {
         LayerNode* next = node->next;
 
-        switch (node->type)
-        {
+        switch (node->type) {
         case Linear:
             DestroyLinearLayer((LinearLayer*) node);
             break;
@@ -148,10 +165,12 @@ void DestroyNetwork(Network* network) {
             DestroyViewLayer((ViewLayer*) node);
             break;
         case ReLU1D:
-            DestroyReLU1DLayer((ReLU1DLayer*) node);
+        case Tanh1D:
+            DestroyActivation1DLayer((Activation1DLayer*) node);
             break;
         case ReLU2D:
-            DestroyReLU2DLayer((ReLU2DLayer*) node);
+        case Tanh2D:
+            DestroyActivation2DLayer((Activation2DLayer*) node);
             break;
         default:
             break;
@@ -166,12 +185,12 @@ Network* CreateNetworkMNIST(int with_gradients) {
     Network* net = CreateNetwork();
     // // Inputs: Data2D of size [b, 1, 28, 28]
     // AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 32, 3, with_gradients, TRUE));
-    // AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
+    // AddToNetwork(net, (LayerNode*) CreateActivation2DLayer(with_gradients));
     // // 26 ->
     // AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, TRUE));
     // // 13 ->
     // AddToNetwork(net, (LayerNode*) CreateConvLayer(32, 64, 4, with_gradients, TRUE));
-    // AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
+    // AddToNetwork(net, (LayerNode*) CreateActivation2DLayer(with_gradients));
     // // 10 ->
     // AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, TRUE));
     // // 5 ->
@@ -181,31 +200,22 @@ Network* CreateNetworkMNIST(int with_gradients) {
 
     // 28 ->
     AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 16, 5, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
+    AddToNetwork(net, (LayerNode*) CreateTanh2DLayer(with_gradients));
     AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, with_gradients));
     // 12 ->
     AddToNetwork(net, (LayerNode*) CreateConvLayer(16, 32, 5, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU2DLayer(with_gradients));
+    AddToNetwork(net, (LayerNode*) CreateTanh2DLayer(with_gradients));
     AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, with_gradients));
     // 4 ->
     AddToNetwork(net, (LayerNode*) CreateFlattenLayer(32));
     // 4 * 4 * 32 ->
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(4*4*32, 128, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
-    
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 256, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(4*4*32, 256, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateTanh1DLayer(with_gradients));
 
-    
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(256, 128, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
+    AddToNetwork(net, (LayerNode*) CreateTanh1DLayer(with_gradients));
 
-    
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 64, with_gradients, TRUE));
-    AddToNetwork(net, (LayerNode*) CreateReLU1DLayer(with_gradients));
-
-    
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(64, 10, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 10, with_gradients, TRUE));
 
     return net;
 }

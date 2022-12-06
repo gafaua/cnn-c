@@ -16,6 +16,8 @@ typedef enum {
     MaxPool,
     ReLU1D,
     ReLU2D,
+    Tanh1D,
+    Tanh2D,
     Flatten,
     Unflatten,
 } NodeType;
@@ -76,7 +78,9 @@ typedef struct ConvLayer {
     int out;
     int size;
     Square** w;  // [out, in] kernels of size size*size
+    float* b;    // Vector of size [out]
     Square** dW; // Gradient matrix of [out, in] kernels of size size*size
+    float* db;    // Gradient vector of size [out]
     Data2D* X;   // Last input passed through this layer
 
     float (*activation)(float);
@@ -90,17 +94,17 @@ typedef struct MaxPoolLayer {
 
 } MaxPoolLayer;
 
-typedef struct ReLU1DLayer {
+typedef struct Activation1DLayer {
     LayerNode node;
     Data1D* X;
     int with_gradient;
-} ReLU1DLayer;
+} Activation1DLayer;
 
-typedef struct ReLU2DLayer {
+typedef struct Activation2DLayer {
     LayerNode node;
     Data2D* X;
     int with_gradient;
-} ReLU2DLayer;
+} Activation2DLayer;
 
 typedef struct ViewLayer {
     LayerNode node;

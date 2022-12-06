@@ -12,11 +12,17 @@ Data1D* linear_backward(LinearLayer* layer, Data1D* dY, float lr);
 Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input);
 Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY);
 
-Data2D* relu_2d_forward(ReLU2DLayer* layer, Data2D* input);
-Data2D* relu_2d_backward(ReLU2DLayer* layer, Data2D* dY);
+Data2D* tanh_2d_forward(Activation2DLayer* layer, Data2D* input);
+Data2D* tanh_2d_backward(Activation2DLayer* layer, Data2D* dY);
 
-Data1D* relu_1d_forward(ReLU1DLayer* layer, Data1D* input);
-Data1D* relu_1d_backward(ReLU1DLayer* layer, Data1D* dY);
+Data1D* tanh_1d_forward(Activation1DLayer* layer, Data1D* input);
+Data1D* tanh_1d_backward(Activation1DLayer* layer, Data1D* dY);
+
+Data2D* relu_2d_forward(Activation2DLayer* layer, Data2D* input);
+Data2D* relu_2d_backward(Activation2DLayer* layer, Data2D* dY);
+
+Data1D* relu_1d_forward(Activation1DLayer* layer, Data1D* input);
+Data1D* relu_1d_backward(Activation1DLayer* layer, Data1D* dY);
 
 float ReLU(float val);
 float ReLU_backward(float val);
@@ -34,11 +40,13 @@ void DestroyViewLayer(ViewLayer* node);
 MaxPoolLayer* CreateMaxPoolLayer(int size, int with_gradient);
 void DestroyMaxPoolLayer(MaxPoolLayer* layer);
 
-ReLU1DLayer* CreateReLU1DLayer(int with_gradient);
-void DestroyReLU1DLayer(ReLU1DLayer* layer);
+Activation1DLayer* CreateReLU1DLayer(int with_gradient);
+Activation1DLayer* CreateTanh1DLayer(int with_gradient);
+void DestroyActivation1DLayer(Activation1DLayer* layer);
 
-ReLU2DLayer* CreateReLU2DLayer(int with_gradient);
-void DestroyReLU2DLayer(ReLU2DLayer* layer);
+Activation2DLayer* CreateReLU2DLayer(int with_gradient);
+Activation2DLayer* CreateTanh2DLayer(int with_gradient);
+void DestroyActivation2DLayer(Activation2DLayer* layer);
 
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random);
 void RandomInitLinearLayer(LinearLayer* l);

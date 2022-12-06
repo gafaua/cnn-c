@@ -34,6 +34,23 @@ void init_square(Square sq, float val) {
     init_matrix(sq.mat, val, sq.size, sq.size);
 }
 
+void add_to_square(Square sq, float val) {
+    #pragma omp parallel for
+    for (int i = 0; i < sq.size; i++)
+        for (int j = 0; j < sq.size; j++)
+            sq.mat[i][j] += val;
+}
+
+float sum_square(Square sq) {
+    float sum = 0.0;
+
+    for (int i = 0; i < sq.size; i++)
+        for (int j = 0; j < sq.size; j++)
+            sum += sq.mat[i][j];
+
+    return sum;
+}
+
 void init_matrix(float** m, float val, int h, int w) {
     //#pragma omp parallel for
     for (int i = 0; i < h; i++)
@@ -44,6 +61,17 @@ void init_matrix(float** m, float val, int h, int w) {
 void init_vector(float* m, float val, int h) {
     for (int i = 0; i < h; i++)
         m[i] = val;
+}
+
+int argmax_vector(float* m, int h) {
+    float max = -INFINITY;
+    int idx = -1;
+    for (int i = 0; i < h; i++)
+        if (m[i] > max) {
+            max = m[i];
+            idx = i;
+        }
+    return idx;
 }
 
 // Initialize matrix with weight in range [-0.5,0.5]

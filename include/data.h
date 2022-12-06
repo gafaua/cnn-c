@@ -7,6 +7,8 @@ Square CreateZerosMatrix(int size);
 Square CopySquareMatrix(Square sq);
 void DestroySquareMatrix(Square s);
 void init_square(Square sq, float val);
+void add_to_square(Square sq, float val);
+float sum_square(Square sq);
 
 float** fmatrix_allocate_2d(int vsize,int hsize);
 Square** square_allocate_2d(int vsize,int hsize);
@@ -14,6 +16,7 @@ Square* square_allocate_1d(int size);
 void free_fmatrix_2d(float** pmat);
 void init_matrix(float** m, float val, int h, int w);
 void init_vector(float* m, float val, int h);
+int argmax_vector(float* m, int h);
 void random_init_matrix(float** m, int h, int w);
 void random_init_vector(float* m, int h);
 void matrix_mul_2d(float** M1, float** M2, float** R, int a, int b, int c);
