@@ -57,17 +57,18 @@ typedef struct LayerNode {
 typedef struct Network {
     LayerNode* first;
     LayerNode* last;
+    int size;
 } Network;
 
 typedef struct LinearLayer {
     LayerNode node;
+    int in;
+    int out;
     float** w;  // Matrix of size [out, in] * [in, b] -> [out, b]
     float* b;   // Vector of size [out]
     float** dW; // Gradient matrix of size [out, in]
     float* db; // Gradient vector of size [out]
     Data1D* X;  // Last input passed through this layer
-    int in;
-    int out;
 } LinearLayer;
 
 typedef struct ConvLayer {

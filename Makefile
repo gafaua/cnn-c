@@ -8,10 +8,10 @@ SRCDIR=src
 
 LIBS=-lm
 
-_DEPS = layers.h definitions.h data.h network.h tests.h mnist.h
+_DEPS = layers.h definitions.h data.h network.h tests.h mnist.h serialize.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = layers.o data.o network.o tests.o
+_OBJ = layers.o data.o network.o tests.o serialize.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)

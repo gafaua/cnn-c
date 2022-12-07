@@ -4,6 +4,7 @@ Network* CreateNetwork() {
     Network* net = (Network*) malloc(sizeof(Network));
     net->first = NULL;
     net->last = NULL;
+    net->size = 0;
     return net;
 }
 
@@ -17,6 +18,7 @@ void AddToNetwork(Network* network, LayerNode* node) {
         network->last->next = node;
         network->last = node;
     }
+    network->size++;
 }
 
 DataType* network_forward(Network* network, DataType* input) {
@@ -171,6 +173,9 @@ void DestroyNetwork(Network* network) {
         case ReLU2D:
         case Tanh2D:
             DestroyActivation2DLayer((Activation2DLayer*) node);
+            break;
+        case MaxPool:
+            DestroyMaxPoolLayer((MaxPoolLayer*) node);
             break;
         default:
             break;

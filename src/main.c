@@ -11,6 +11,7 @@
 #include "network.h"
 #include "tests.h"
 #include "mnist.h"
+#include "serialize.h"
 
 #define TRUE 1
 #define FALSE 0
@@ -162,24 +163,27 @@ int main(int argc,char** argv) {
     long long start, end; 
     start = timeInMilliseconds();
 
-    load_mnist();
-
     int* indices = (int*) malloc(sizeof(int)*NUM_TRAIN);
     for (int i = 0; i < NUM_TRAIN; i++) indices[i] = i;
 
-    Network* net = CreateNetworkMNIST(TRUE);
+
     float lr = 1e-5;
     int num_epoch = 10;
 
+    load_mnist();
+    char name[17];
+    Network* net = CreateNetworkMNIST(TRUE);
+    //Network* net = read_newtork(name, TRUE);
     for (int i = 0; i < num_epoch; i++)
     {
         shuffle(indices, NUM_TRAIN);
-
         train_epoch(net, lr, indices, i+1);
         printf("\n");
+        snprintf(name, 17, "checkpoint_%d.bin", i+1);
+        save_newtork(net, name); 
+
         test_epoch(net, i+1);
-        
-        lr *= 0.2;
+
         printf("\n");
     }
 
