@@ -166,7 +166,6 @@ int main(int argc,char** argv) {
     int* indices = (int*) malloc(sizeof(int)*NUM_TRAIN);
     for (int i = 0; i < NUM_TRAIN; i++) indices[i] = i;
 
-
     float lr = 1e-5;
     int num_epoch = 10;
 
@@ -174,16 +173,18 @@ int main(int argc,char** argv) {
     char name[17];
     Network* net = CreateNetworkMNIST(TRUE);
     //Network* net = read_newtork(name, TRUE);
-    for (int i = 0; i < num_epoch; i++)
+    for (int i = 1; i <= num_epoch; i++)
     {
         shuffle(indices, NUM_TRAIN);
-        train_epoch(net, lr, indices, i+1);
+        train_epoch(net, lr, indices, i);
         printf("\n");
-        snprintf(name, 17, "checkpoint_%d.bin", i+1);
+
+        snprintf(name, 17, "checkpoint_%d.bin", i);
         save_newtork(net, name); 
 
-        test_epoch(net, i+1);
-
+        test_epoch(net, i);
+        if (i%3 == 0)
+            lr *= 0.1;
         printf("\n");
     }
 
