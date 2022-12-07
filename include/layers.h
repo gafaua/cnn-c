@@ -2,6 +2,7 @@
 
 #include "definitions.h"
 #include "data.h"
+#include "network.h"
 
 Data2D* conv_forward(ConvLayer* layer, Data2D* input);
 Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr);
@@ -28,7 +29,7 @@ float ReLU(float val);
 float ReLU_backward(float val);
 float Identity(float val);
 
-LossResult CrossEntropy(Data1D* y_hat, int* y);
+LossResult CrossEntropy(Network* net, Data1D* y_hat, int* y) ;
 
 Data1D* flatten(Data2D* d);
 Data2D* unflatten(Data1D* d, int channels);
@@ -51,11 +52,13 @@ void DestroyActivation2DLayer(Activation2DLayer* layer);
 LinearLayer* CreateLinearLayer(int in, int out, int with_gradient, int random);
 void RandomInitLinearLayer(LinearLayer* l);
 void LearnLinearLayer(LinearLayer* l, float learning_rate);
+float GetLinearLayerNorm(LinearLayer* l);
 void DestroyLinearLayer(LinearLayer* layer);
 
 ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient, int random);
 void RandomInitConvLayer(ConvLayer* c);
 void LearnConvLayer(ConvLayer* c, float learning_rate);
+float GetConvLayerNorm(ConvLayer* l);
 void DestroyConvLayer(ConvLayer* c);
 
 void print_conv_layer(ConvLayer* layer);

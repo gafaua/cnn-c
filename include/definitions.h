@@ -68,8 +68,6 @@ typedef struct LinearLayer {
     Data1D* X;  // Last input passed through this layer
     int in;
     int out;
-
-    float (*activation)(float);
 } LinearLayer;
 
 typedef struct ConvLayer {
@@ -82,8 +80,6 @@ typedef struct ConvLayer {
     Square** dW; // Gradient matrix of [out, in] kernels of size size*size
     float* db;    // Gradient vector of size [out]
     Data2D* X;   // Last input passed through this layer
-
-    float (*activation)(float);
 } ConvLayer;
 
 typedef struct MaxPoolLayer {

@@ -219,3 +219,22 @@ Network* CreateNetworkMNIST(int with_gradients) {
 
     return net;
 }
+
+float GetLayersNorm(Network* net) {
+    LayerNode* node = net->first;
+    float sum = 0.0;
+    while(node != NULL) {
+        switch (node->type) {
+            case Linear:
+                sum += GetLinearLayerNorm((LinearLayer*) node);
+                break;
+            case Conv:
+                sum += GetConvLayerNorm((ConvLayer*) node);
+                break;
+            default:
+                break;
+        }
+        node = node->next;
+    }
+    return sum;
+}

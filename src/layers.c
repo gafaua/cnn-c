@@ -354,12 +354,12 @@ Data2D* relu_2d_forward(Activation2DLayer* layer, Data2D* input) {
                         if (input->data[i][j].mat[k][l] > 0) {
                             output->data[i][j].mat[k][l] = input->data[i][j].mat[k][l];
                             layer->X->data[i][j].mat[k][l] = 1.0;
-                        } 
+                        }
                         else {
-                            // output->data[i][j].mat[k][l] = 0.0001*input->data[i][j].mat[k][l];
-                            // layer->X->data[i][j].mat[k][l] = 0.0001;
-                            output->data[i][j].mat[k][l] = 0.0;
-                            layer->X->data[i][j].mat[k][l] = 0.0;
+                            output->data[i][j].mat[k][l] = 0.0001*input->data[i][j].mat[k][l];
+                            layer->X->data[i][j].mat[k][l] = 0.0001;
+                            //output->data[i][j].mat[k][l] = 0.0;
+                            //layer->X->data[i][j].mat[k][l] = 0.0;
                         }
                     }
     }
@@ -456,7 +456,7 @@ float Identity(float val) {
 // @param y_hat: output predictions of size [batch, num_classes]
 // @param y: indices of ground truth values of size [batch]
 // @returns LossResult containing loss value and 
-LossResult CrossEntropy(Data1D* y_hat, int* y) {
+LossResult CrossEntropy(Network* net, Data1D* y_hat, int* y) {
     double sum, tmp, pred, max;
     int idx;
     LossResult result;
@@ -465,9 +465,12 @@ LossResult CrossEntropy(Data1D* y_hat, int* y) {
     result.value = 0.0;
     result.accuracy = 0.0;
     float eps = 1e-7;
+    float wd_factor = 0.0001;
 
     // print_data1d(y_hat);
     // Compute softmax in dL
+    float weight_norm = GetLayersNorm(net);
+
     for (int i = 0; i < y_hat->b; i++) {
         sum = eps;
         for (int j = 0; j < y_hat->n; j++) {
@@ -485,34 +488,14 @@ LossResult CrossEntropy(Data1D* y_hat, int* y) {
             result.accuracy++;
         //printf("Softmax: \n");
         result.dL->mat[i][y[i]] -= 1.0;
+        // for (int j = 0; j < y_hat->n; j++)
+        //     result.dL->mat[i][j] *= 2 * weight_norm * wd_factor;
     }
+
     //print_data1d(result.dL);
 
-    // for (int i = 0; i < y_hat->b; i++) {
-    //     sum = pred = tmp = 0.0;
-    //     int gt = y[i];
-    //     result.dL->mat[i][gt] -= 1.0;
-    //     //printf("GT: %d ", gt);
-    //     max = -INFINITY;
-    //     idx = -1;
-    //     for (int j = 0; j < y_hat->n; j++) {
-    //         if (y_hat->mat[i][j] > max) {
-    //             max = y_hat->mat[i][j];
-    //             idx = j;
-    //         }
-    //         tmp = exp(y_hat->mat[i][j]);
-    //         //printf("%f ", tmp);
-    //         sum += tmp;
-    //         if (j == gt)
-    //             pred = tmp;
-    //     }
-    //     if (idx == gt) result.accuracy++;
-    //     //printf(" Sum: %f Logit: %f\n\n", sum, pred/sum);
-    //     result.value -= logf(pred/sum);
-    // }
-
     result.accuracy = result.accuracy / y_hat->b;
-    result.value = result.value / y_hat->b;
+    result.value = result.value / y_hat->b;// * weight_norm * wd_factor / y_hat->b;
     return result;
 }
 
@@ -683,6 +666,14 @@ void LearnLinearLayer(LinearLayer* l, float learning_rate) {
     }
 }
 
+float GetLinearLayerNorm(LinearLayer* l) {
+    float sum = 0.0;
+    for (int i = 0; i < l->out; i++)
+        for (int j = 0; j < l->in; j++) 
+            sum += fabsf(l->w[i][j]);
+    return sum;
+}
+
 void DestroyLinearLayer(LinearLayer* layer) {
     free_fmatrix_2d(layer->w);
     free(layer->b);
@@ -750,6 +741,16 @@ void LearnConvLayer(ConvLayer* c, float learning_rate) {
                 for(int l=0; l<c->size; l++)
                     c->w[i][j].mat[k][l] -= c->dW[i][j].mat[k][l] * learning_rate;
     }
+}
+
+float GetConvLayerNorm(ConvLayer* c) {
+    float sum = 0.0;
+    for (int i = 0; i < c->out; i++)
+        for (int j = 0; j < c->in; j++) 
+            for(int k=0; k< c->size; k++)
+                for(int l=0; l< c->size; l++)
+                    sum += fabsf(c->w[i][j].mat[k][l]);
+    return sum;
 }
 
 void DestroyConvLayer(ConvLayer* c) {

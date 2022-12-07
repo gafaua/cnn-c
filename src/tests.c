@@ -127,7 +127,7 @@ void test_mnist_network() {
         printf("\nTesting Forward pass %d/%d...", i, num_batch);
         outputs = (Data1D*) network_forward(net, (DataType*) inputs);
         //print_data1d(outputs);
-        LossResult loss = CrossEntropy(outputs, gt);
+        LossResult loss = CrossEntropy(net, outputs, gt);
         printf(" Loss: %f", loss.value);
         printf("\nTesting Backward pass %d/%d...", i, num_batch);
         network_backward(net, (DataType*) loss.dL, 0.000001);

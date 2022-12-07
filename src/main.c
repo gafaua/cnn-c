@@ -88,7 +88,7 @@ void train_epoch(Network* net, float lr, int* indices, int epoch) {
         printf("Forward -> ");
         outputs = (Data1D*) network_forward(net, (DataType*) inputs);
 
-        loss = CrossEntropy(outputs, gt);
+        loss = CrossEntropy(net, outputs, gt);
 
         printf("Backward -> ");
         network_backward(net, (DataType*) loss.dL, lr);
@@ -136,7 +136,7 @@ void test_epoch(Network* net, int epoch) {
         printf("Forward -> ");
         outputs = (Data1D*) network_forward(net, (DataType*) inputs);
 
-        loss = CrossEntropy(outputs, gt);
+        loss = CrossEntropy(net, outputs, gt);
 
         DestroyData1D(outputs);
 
@@ -179,7 +179,7 @@ int main(int argc,char** argv) {
         printf("\n");
         test_epoch(net, i+1);
         
-        lr *= 0.7;
+        lr *= 0.2;
         printf("\n");
     }
 
