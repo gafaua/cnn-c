@@ -170,7 +170,8 @@ int main(int argc,char** argv) {
     int num_epoch = 10;
 
     load_mnist();
-    char name[17];
+    char base_name[] = "check3conv";
+    char name[20];
     Network* net = CreateNetworkMNIST(TRUE);
     //Network* net = read_newtork(name, TRUE);
     for (int i = 1; i <= num_epoch; i++)
@@ -179,12 +180,14 @@ int main(int argc,char** argv) {
         train_epoch(net, lr, indices, i);
         printf("\n");
 
-        snprintf(name, 17, "checkpoint_%d.bin", i);
+        snprintf(name, 20, "%s_%d.bin", base_name, i);
         save_newtork(net, name); 
 
         test_epoch(net, i);
-        if (i%3 == 0)
+        if (i%3 == 0) {
             lr *= 0.1;
+            printf("\nNew Learning Rate: %f", lr);
+        }
         printf("\n");
     }
 
