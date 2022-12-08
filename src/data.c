@@ -35,7 +35,7 @@ void init_square(Square sq, float val) {
 }
 
 void add_to_square(Square sq, float val) {
-    #pragma omp parallel for
+    #pragma omp parallel for collapse(2)
     for (int i = 0; i < sq.size; i++)
         for (int j = 0; j < sq.size; j++)
             sq.mat[i][j] += val;
@@ -52,7 +52,7 @@ float sum_square(Square sq) {
 }
 
 void init_matrix(float** m, float val, int h, int w) {
-    //#pragma omp parallel for
+    #pragma omp parallel for collapse(2)
     for (int i = 0; i < h; i++)
         for (int j = 0; j < w; j++)
             m[i][j] = val;
@@ -74,11 +74,15 @@ int argmax_vector(float* m, int h) {
     return idx;
 }
 
+float random_range(float min, float max) {
+    return min + rand() / (float) RAND_MAX * (max - min);
+}
+
 // Initialize matrix with weight in range [-0.5,0.5]
 void random_init_matrix(float** m, int h, int w) {
     for (int i = 0; i < h; i++)
         for (int j = 0; j < w; j++) {
-            m[i][j] = (float)(rand() - RAND_MAX/2)/(float)RAND_MAX;
+            m[i][j] = random_range(-0.2, 0.2);
         }
 }
 

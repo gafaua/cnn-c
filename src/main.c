@@ -63,12 +63,11 @@ void shuffle(int *arr, size_t n)
     }
 }
 
-void train_epoch(Network* net, float lr, int* indices, int epoch) {
-    int batch = 8;
-    int num_batch = NUM_TRAIN / batch;
+void train_epoch(Network* net, float lr, int* indices, int epoch, int batch_size) {
+    int num_batch = NUM_TRAIN / batch_size;
     
-    Data2D* inputs = CreateData2D(28, batch, 1);
-    int* gt = (int*) malloc(sizeof(int) * batch);
+    Data2D* inputs = CreateData2D(28, batch_size, 1);
+    int* gt = (int*) malloc(sizeof(int) * batch_size);
 
     Data1D* outputs;
     LossResult loss;
@@ -84,7 +83,7 @@ void train_epoch(Network* net, float lr, int* indices, int epoch) {
 
     for (int i = 0; i < num_batch; i++) {
         printf("\r[%d] Train: Loading -> ", epoch);
-        load_batch(inputs, gt, i, batch, train_image, train_label, indices);
+        load_batch(inputs, gt, i, batch_size, train_image, train_label, indices);
 
         printf("Forward -> ");
         outputs = (Data1D*) network_forward(net, (DataType*) inputs);
@@ -166,18 +165,18 @@ int main(int argc,char** argv) {
     int* indices = (int*) malloc(sizeof(int)*NUM_TRAIN);
     for (int i = 0; i < NUM_TRAIN; i++) indices[i] = i;
 
-    float lr = 1e-5;
+    float lr = 1e-3;
     int num_epoch = 10;
 
     load_mnist();
-    char base_name[] = "check3conv";
+    char base_name[] = "checkfc";
     char name[20];
     Network* net = CreateNetworkMNIST(TRUE);
     //Network* net = read_newtork(name, TRUE);
     for (int i = 1; i <= num_epoch; i++)
     {
         shuffle(indices, NUM_TRAIN);
-        train_epoch(net, lr, indices, i);
+        train_epoch(net, lr, indices, i, 64);
         printf("\n");
 
         snprintf(name, 20, "%s_%d.bin", base_name, i);

@@ -106,7 +106,6 @@ void network_backward(Network* network, DataType* dY, float lr) {
             break;
         case Flatten:
             assert(*dY == D1D && "The output of a Flatten Layer must be a Data1D");
-            assert(node->previous != NULL &&"A flatten Layer must follow a Conv Layer");
             int channels = ((ViewLayer*) node)->channels;
             dX = (DataType*) unflatten((Data1D*) dY, channels);
             DestroyData1D((Data1D*) dY); // Last dY not useful anymore
@@ -204,17 +203,17 @@ Network* CreateNetworkMNIST(int with_gradients) {
     // AddToNetwork(net, (LayerNode*) CreateLinearLayer(64 * 5* 5, 10, with_gradients, TRUE));
 
     // 28 ->
-    AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 16, 5, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(1, 8, 5, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateTanh2DLayer(with_gradients));
-    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, with_gradients));
+    // 24 ->
+    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, TRUE));
     // 12 ->
-    AddToNetwork(net, (LayerNode*) CreateConvLayer(16, 32, 5, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateConvLayer(8, 16, 5, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateTanh2DLayer(with_gradients));
-    AddToNetwork(net, (LayerNode*) CreateMaxPoolLayer(2, with_gradients));
-    // 4 ->
-    AddToNetwork(net, (LayerNode*) CreateFlattenLayer(32));
-    // 4 * 4 * 32 ->
-    AddToNetwork(net, (LayerNode*) CreateLinearLayer(4*4*32, 256, with_gradients, TRUE));
+    // 8 ->
+    AddToNetwork(net, (LayerNode*) CreateFlattenLayer(16));
+    // 8 * 8 * 16 ->
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(8*8*16, 256, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateTanh1DLayer(with_gradients));
 
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(256, 128, with_gradients, TRUE));
@@ -223,6 +222,19 @@ Network* CreateNetworkMNIST(int with_gradients) {
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 10, with_gradients, TRUE));
 
     return net;
+}
+
+Network* CreateNetworkMNIST_FC(int with_gradients) {
+    Network* net = CreateNetwork();
+    AddToNetwork(net, (LayerNode*) CreateFlattenLayer(1));
+
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(28*28, 256, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateTanh1DLayer(with_gradients));
+
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(256, 128, with_gradients, TRUE));
+    AddToNetwork(net, (LayerNode*) CreateTanh1DLayer(with_gradients));
+
+    AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 10, with_gradients, TRUE));
 }
 
 float GetLayersNorm(Network* net) {
