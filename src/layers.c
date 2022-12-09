@@ -85,7 +85,7 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
             Square out = output->data[i][j];
             for (k = 0; k < input->c; k++)
                 convolution(in[k], kernels[k], out);
-            add_to_square(out, layer->b[j]);
+            //add_to_square(out, layer->b[j]);
         }
     }
 
@@ -123,7 +123,7 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
             Square* dWOut = layer->dW[i];
             for (j = 0; j < layer->in; j++) {
                 deconvolution(dYb[i], Xb[j], dXb[j], kernels[j], dWOut[j]);
-                layer->db[i] += sum_square(dWOut[j]);
+                //layer->db[i] += sum_square(dWOut[j]);
             }
         }
     }
@@ -661,7 +661,7 @@ void LearnLinearLayer(LinearLayer* l, float learning_rate) {
 
     #pragma omp parallel for
     for (int i = 0; i < l->out; i++) {
-        l->b[i] -= l->db[i] * learning_rate;
+        //l->b[i] -= l->db[i] * learning_rate;
         for (int j = 0; j < l->in; j++) 
             l->w[i][j] -= l->dW[i][j] * learning_rate;
     }

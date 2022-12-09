@@ -169,22 +169,22 @@ int main(int argc,char** argv) {
     int num_epoch = 10;
 
     load_mnist();
-    char base_name[] = "checkfc";
+    char base_name[] = "check_CNN";
     char name[20];
     Network* net = CreateNetworkMNIST(TRUE);
     //Network* net = read_newtork(name, TRUE);
     for (int i = 1; i <= num_epoch; i++)
     {
         shuffle(indices, NUM_TRAIN);
-        train_epoch(net, lr, indices, i, 64);
+        train_epoch(net, lr, indices, i, 8);
         printf("\n");
 
         snprintf(name, 20, "%s_%d.bin", base_name, i);
         save_newtork(net, name); 
 
         test_epoch(net, i);
-        if (i%3 == 0) {
-            lr *= 0.1;
+        if (i%2 == 0) {
+            lr /= 5;
             printf("\nNew Learning Rate: %f", lr);
         }
         printf("\n");
