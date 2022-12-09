@@ -32,8 +32,8 @@ void max_pool_conv_grad(Square X, Square Y, int* mem, int size) {
 }
 
 void max_pool_conv(Square X, Square Y, int size) {
-    for(int i=0; i < Y.size; i+=size)
-        for(int j=0; j < Y.size; j+=size) {
+    for(int i=0; i < Y.size; i++)
+        for(int j=0; j < Y.size; j++) {
             float max = -INFINITY;
             int ii = i * size;
             int jj = j * size;
@@ -107,7 +107,7 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
     // Clear gradients
     Data2D* dX = CreateData2DZeros(layer->X->size, layer->X->b, layer->X->c);
     for (i = 0; i < layer->out; i++) {
-        layer->db[i] = 0.0;
+        //layer->db[i] = 0.0;
         for (j = 0; j < layer->in; j++)
             init_square(layer->dW[i][j], 0.0);
     }
@@ -212,6 +212,7 @@ Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input) {
         }
 
         layer->mem = (int*) malloc(sizeof(int) * 2 * output_size * output_size * input->c * input->b);
+        #pragma omp parallel for
         for (int i = 0; i < input->b; i++) {
             int ii = i * 2 * output_size * output_size * input->c;
             for (int j = 0; j < input->c; j++) {
@@ -221,6 +222,7 @@ Data2D* max_pool_forward(MaxPoolLayer* layer, Data2D* input) {
         }
     }
     else {
+        #pragma omp parallel for
         for (int i = 0; i < input->b; i++) {
             for (int j = 0; j < input->c; j++) {
                 max_pool_conv(input->data[i][j], output->data[i][j], layer->size);
@@ -236,6 +238,7 @@ Data2D* max_pool_backward(MaxPoolLayer* layer, Data2D* dY) {
 
     Data2D* dX = CreateData2DZeros(dY->size * layer->size, dY->b, dY->c);
 
+    #pragma omp parallel for
     for (int i = 0; i < dY->b; i++) {
         int ii = i * 2 * dY->size * dY->size * dY->c;
         for (int j = 0; j < dY->c; j++) {
@@ -689,9 +692,9 @@ void DestroyLinearLayer(LinearLayer* layer) {
 ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient, int random) {
     ConvLayer* c = (ConvLayer*) malloc(sizeof(ConvLayer));
     c->w = square_allocate_2d(out_channels, in_channels);
-    c->b = (float*) malloc(sizeof(float)*out_channels);
+    //c->b = (float*) malloc(sizeof(float)*out_channels);
     c->dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
-    c->db = with_gradient ? (float*) malloc(sizeof(float)*out_channels) : NULL;
+    //c->db = with_gradient ? (float*) malloc(sizeof(float)*out_channels) : NULL;
     c->X = NULL;
 
     for (int i=0; i<out_channels; i++) 
@@ -722,7 +725,7 @@ ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with
 void RandomInitConvLayer(ConvLayer* c) {
     int size = c->size;
 
-    random_init_vector(c->b, c->out);
+    //random_init_vector(c->b, c->out);
 
     for (int i=0; i < c->out; i++) {
         for (int j=0; j < c->in; j++) {
@@ -736,7 +739,7 @@ void LearnConvLayer(ConvLayer* c, float learning_rate) {
 
     //#pragma omp parallel for
     for (int i=0; i<c->out; i++) {
-        c->b[i] -= c->db[i] * learning_rate;
+        //c->b[i] -= c->db[i] * learning_rate;
         for (int j=0; j<c->in; j++)
             for(int k=0; k<c->size; k++)
                 for(int l=0; l<c->size; l++)
@@ -764,14 +767,14 @@ void DestroyConvLayer(ConvLayer* c) {
         }
     free(c->w[0]);
     free(c->w);
-    free(c->b);
+    //free(c->b);
     c->w = NULL;
     if (c->dW != NULL) {
         free(c->dW[0]);
         free(c->dW);
         c->dW = NULL;
     }
-    if (c->db != NULL) free(c->db);
+    //if (c->db != NULL) free(c->db);
     if (c->X != NULL) DestroyData2D(c->X);
 
     free(c);

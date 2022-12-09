@@ -2,12 +2,13 @@
 Takafumi Hoiruchi. 2018. Adapted by Gaspar Faure (2022)
 https://github.com/takafumihoriuchi/MNIST_for_C
 */
-
+#pragma once
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <math.h>
 
 // set appropriate path for data
 #define TRAIN_IMAGE "./data/train-images.idx3-ubyte"

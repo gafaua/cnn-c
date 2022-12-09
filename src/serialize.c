@@ -9,15 +9,17 @@ ConvLayer* read_conv_layer(FILE* file, int with_gradient) {
     fread(&in, sizeof(int), 1, file);
     fread(&size, sizeof(int), 1, file);
     printf("Conv [%d x %d x %d]\n", in, out, size);
+
     ConvLayer* layer = CreateConvLayer(in, out, size, with_gradient, FALSE);
     // Weights
     for (int i = 0; i < layer->out; i++)
         for (int j = 0; j < layer->in; j++)
-            for (int k = 0; k < layer->size; k++)
-                fread(layer->w[i][j].mat[k], sizeof(float), layer->size, file);
+            for (int k = 0; k < layer->size; k++) {
+                fread(layer->w[i][j].mat[k], sizeof(float), size, file);
+            }
 
     // Bias
-    fread(layer->b, sizeof(float), layer->out, file);
+    // fread(layer->b, sizeof(float), layer->out, file);
 
     return layer;
 }
@@ -31,10 +33,11 @@ void write_conv_layer(FILE* file, ConvLayer* layer) {
     // Weights
     for (int i = 0; i < layer->out; i++)
         for (int j = 0; j < layer->in; j++)
-            for (int k = 0; k < layer->size; k++)
+            for (int k = 0; k < layer->size; k++) {
                 fwrite(layer->w[i][j].mat[k], sizeof(float), layer->size, file);
+            }
     // Bias
-    fwrite(layer->b, sizeof(float), layer->out, file);
+    // fwrite(layer->b, sizeof(float), layer->out, file);
 }
 
 void write_linear_layer(FILE* file, LinearLayer* layer) {

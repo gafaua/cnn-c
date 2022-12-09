@@ -210,7 +210,6 @@ Network* CreateNetworkMNIST(int with_gradients) {
 
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(128, 10, with_gradients, TRUE));
 
-
     return net;
 }
 

@@ -8,10 +8,10 @@ SRCDIR=src
 
 LIBS=-lm
 
-_DEPS = layers.h definitions.h data.h network.h tests.h mnist.h serialize.h
+_DEPS = layers.h definitions.h data.h network.h tests.h serialize.h utils.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = layers.o data.o network.o tests.o serialize.o
+_OBJ = layers.o data.o network.o tests.o serialize.o utils.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)
@@ -20,7 +20,13 @@ $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)
 main: $(OBJ)
 	$(CC) -o $@ $(SRCDIR)/$@.c $^ $(CFLAGS) $(LIBS)
 
+demo: $(OBJ)
+	$(CC) -o $@ $(SRCDIR)/$@.c $^ $(CFLAGS) $(LIBS)
+
+test: $(OBJ)
+	$(CC) -o $@ $(SRCDIR)/$@.c $^ $(CFLAGS) $(LIBS)
+
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o main *~ core $(INCDIR)/*~ 
+	rm -f $(ODIR)/*.o main demo test *~ core $(INCDIR)/*~ 

@@ -77,9 +77,9 @@ typedef struct ConvLayer {
     int out;
     int size;
     Square** w;  // [out, in] kernels of size size*size
-    float* b;    // Vector of size [out]
+    //float* b;    // Vector of size [out]
     Square** dW; // Gradient matrix of [out, in] kernels of size size*size
-    float* db;    // Gradient vector of size [out]
+    //float* db;    // Gradient vector of size [out]
     Data2D* X;   // Last input passed through this layer
 } ConvLayer;
 
