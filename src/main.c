@@ -30,7 +30,7 @@ int main(int argc,char** argv) {
     int num_epoch = 10;
 
     load_data();
-    char base_name[] = "checkpoint";
+    char base_name[] = "model";
     char name[20];
     Network* net = CreateNetworkMNIST(TRUE);
     //Network* net = read_newtork("check_CNN_5.bin", TRUE);
