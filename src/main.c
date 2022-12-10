@@ -15,8 +15,8 @@
 #define FALSE 0
 
 int main(int argc,char** argv) {
-    int p = omp_get_max_threads();
-    printf("Max number of threads used: %d\n\n", p);
+    // int p = omp_get_max_threads();
+    // printf("Max number of threads used: %d\n\n", p);
     // int seed = time(NULL);
     // printf("Setting random seed: %d\n", seed);
     // srand(seed);
@@ -30,7 +30,7 @@ int main(int argc,char** argv) {
     int num_epoch = 10;
 
     load_data();
-    char base_name[] = "model";
+    char base_name[] = "model_3x3";
     char name[20];
     Network* net = CreateNetworkMNIST(TRUE);
     //Network* net = read_newtork("check_CNN_5.bin", TRUE);

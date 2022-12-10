@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
 
     long long tmp = timeInMilliseconds();
     Data1D* output = (Data1D*) network_forward(net, (DataType*) image);
-    SaveImagePgm("oui", image->data[0][0].mat, 28, 28);
+
     SoftmaxTransform(output);
     print_data1d(output);
     int n = argmax_vector(output->mat[0], output->n);
