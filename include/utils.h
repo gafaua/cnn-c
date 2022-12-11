@@ -13,7 +13,10 @@
 
 #define NBCHAR 200
 #define NUM_TRAIN 60000
+#define GREY_LEVEL 255
 
+void save_feature_maps(Data2D* maps, int num);
+void Recal(float** mat,int lgth,int wdth);
 void load_data();
 
 long long timeInMilliseconds(void);

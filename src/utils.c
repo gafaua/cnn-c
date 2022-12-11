@@ -1,6 +1,58 @@
 #include "utils.h"
 #include "mnist.h"
 
+
+void save_feature_maps(Data2D* maps, int num) {
+    int height = maps->c / 4;
+    int width  = 4;
+    float** img = fmatrix_allocate_2d(maps->size*height, maps->size*width);
+                    printf("%d %d \n", maps->size*height, maps->size*width);
+
+    int h, w;
+    for (int i = 0; i < maps->c; i++) {
+        Recal(maps->data[0][i].mat, maps->size, maps->size);
+        h = i / 4;
+        w = i % 4;
+        for (int j = 0; j < maps->size; j++)
+            for (int k = 0; k < maps->size; k++) {
+                img[h*maps->size+j][w*maps->size+k] = maps->data[0][i].mat[j][k];
+            }
+    }
+
+    char name[20];
+    snprintf(name, 20, "map_layer_%d", num);
+    SaveImagePgm(name, img, maps->size*height, maps->size*width);
+    free_fmatrix_2d(img);
+}
+
+
+void Recal(float** mat,int lgth,int wdth)
+{
+ int i,j;
+ float max,min;
+
+ /*Initialisation*/
+ min=mat[0][0];
+
+ /*Recherche du min*/
+  for(i=0;i<lgth;i++) for(j=0;j<wdth;j++)
+    if (mat[i][j]<min) min=mat[i][j];
+
+ /*plus min*/
+   for(i=0;i<lgth;i++) for(j=0;j<wdth;j++)
+    mat[i][j]-=min;
+
+   max=mat[0][0];
+ /*Recherche du max*/
+  for(i=0;i<lgth;i++) for(j=0;j<wdth;j++) 
+    if (mat[i][j]>max) max=mat[i][j];
+
+ /*Recalibre la matrice*/
+ for(i=0;i<lgth;i++) for(j=0;j<wdth;j++)
+   mat[i][j]*=(GREY_LEVEL/max);      
+}
+
+
 void load_data() {
   load_mnist();
 }

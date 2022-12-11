@@ -23,10 +23,13 @@ main: $(OBJ)
 demo: $(OBJ)
 	$(CC) -o $@ $(SRCDIR)/$@.c $^ $(CFLAGS) $(LIBS)
 
+featuremaps: $(OBJ)
+	$(CC) -o $@ $(SRCDIR)/$@.c $^ $(CFLAGS) $(LIBS)
+
 test: $(OBJ)
 	$(CC) -o $@ $(SRCDIR)/$@.c $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o main demo test *~ core $(INCDIR)/*~ 
+	rm -f $(ODIR)/*.o main demo test featuremaps *~ core $(INCDIR)/*~

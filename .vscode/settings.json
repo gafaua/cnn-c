@@ -4,6 +4,8 @@
         "layers.h": "c",
         "tests.h": "c",
         "network.h": "c",
-        "mnist.h": "c"
+        "mnist.h": "c",
+        "utils.h": "c",
+        "serialize.h": "c"
     }
 }
