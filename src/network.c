@@ -225,9 +225,6 @@ Network* CreateNetworkMNIST_FC(int with_gradients) {
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(1000, 1000, with_gradients, TRUE));
     AddToNetwork(net, (LayerNode*) CreateTanh1DLayer(with_gradients));
 
-    // AddToNetwork(net, (LayerNode*) CreateLinearLayer(256, 128, with_gradients, TRUE));
-    // AddToNetwork(net, (LayerNode*) CreateTanh1DLayer(with_gradients));
-
     AddToNetwork(net, (LayerNode*) CreateLinearLayer(1000, 10, with_gradients, TRUE));
 }
 

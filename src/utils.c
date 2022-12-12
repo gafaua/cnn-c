@@ -6,7 +6,6 @@ void save_feature_maps(Data2D* maps, int num) {
     int height = maps->c / 4;
     int width  = 4;
     float** img = fmatrix_allocate_2d(maps->size*height, maps->size*width);
-                    printf("%d %d \n", maps->size*height, maps->size*width);
 
     int h, w;
     for (int i = 0; i < maps->c; i++) {

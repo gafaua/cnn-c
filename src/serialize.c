@@ -18,9 +18,6 @@ ConvLayer* read_conv_layer(FILE* file, int with_gradient) {
                 fread(layer->w[i][j].mat[k], sizeof(float), size, file);
             }
 
-    // Bias
-    // fread(layer->b, sizeof(float), layer->out, file);
-
     return layer;
 }
 
@@ -36,8 +33,6 @@ void write_conv_layer(FILE* file, ConvLayer* layer) {
             for (int k = 0; k < layer->size; k++) {
                 fwrite(layer->w[i][j].mat[k], sizeof(float), layer->size, file);
             }
-    // Bias
-    // fwrite(layer->b, sizeof(float), layer->out, file);
 }
 
 void write_linear_layer(FILE* file, LinearLayer* layer) {

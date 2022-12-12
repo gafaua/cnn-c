@@ -1,5 +1,4 @@
 #include "layers.h"
-#define LR 0.00001
 
 // Y must be 0 init
 void convolution(Square X, Square W, Square Y) {
@@ -85,18 +84,18 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
             Square out = output->data[i][j];
             for (k = 0; k < input->c; k++)
                 convolution(in[k], kernels[k], out);
-            //add_to_square(out, layer->b[j]);
         }
     }
 
     return output;
 }
 
+// @param layer.X: Data2D, dim [batch, in_channels, size, size]
 // @param dY: Data2D, dim [batch, out_channels, size, size]
-// @param X: Data2D, dim [batch, in_channels, size, size]
 // @param layer: Convolutionnal layer, weights of dim [out_channels, in_channels, k_size, k_size]
+// @param lr: Learning Rate, step size for SGD
+// @computes layer.dW: dim [out_channels, in_channels, k_size, k_size]
 // @returns dX: Data2D, dim [batch, in_channels, size, size]
-// @returns layer.dW: dim [out_channels, in_channels, k_size, k_size]
 Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
     assert(layer->dW != NULL && "This convolutional layer wasn't initialized with the with_gradient flag");
     assert(layer->out == dY->c && "The gradient from the next layer doesn't have the same number of channels as the output channels of this convolutional layer");
@@ -107,7 +106,6 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
     // Clear gradients
     Data2D* dX = CreateData2DZeros(layer->X->size, layer->X->b, layer->X->c);
     for (i = 0; i < layer->out; i++) {
-        //layer->db[i] = 0.0;
         for (j = 0; j < layer->in; j++)
             init_square(layer->dW[i][j], 0.0);
     }
@@ -123,7 +121,6 @@ Data2D* conv_backward(ConvLayer* layer, Data2D* dY, float lr) {
             Square* dWOut = layer->dW[i];
             for (j = 0; j < layer->in; j++) {
                 deconvolution(dYb[i], Xb[j], dXb[j], kernels[j], dWOut[j]);
-                //layer->db[i] += sum_square(dWOut[j]);
             }
         }
     }
@@ -167,10 +164,11 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
 }
 
 // @param dY: [batch_size, output_features]
-// @param  X: [batch_size, input_features]
+// @param layer.X: [batch_size, input_features]
 // @param layer.w: [output_features, input_features]
+// @param lr: Learning Rate, step size for SGD
+// @computes layer.dW: [output_features, input_features]
 // @returns dX: [batch_size, input_features]
-// @returns layer.dW: [output_features, input_features]
 Data1D* linear_backward(LinearLayer* layer, Data1D* dY, float lr) {
     assert(layer->dW != NULL && "This linear layer wasn't initialized with the with_gradient flag");
     assert(dY->n == layer->out && "The gradient from the next layer has not the same number of features than this layer");
@@ -362,8 +360,6 @@ Data2D* relu_2d_forward(Activation2DLayer* layer, Data2D* input) {
                         else {
                             output->data[i][j].mat[k][l] = 0.0001*input->data[i][j].mat[k][l];
                             layer->X->data[i][j].mat[k][l] = 0.0001;
-                            //output->data[i][j].mat[k][l] = 0.0;
-                            //layer->X->data[i][j].mat[k][l] = 0.0;
                         }
                     }
     }
@@ -456,50 +452,41 @@ float Identity(float val) {
     return val;
 }
 
-// @brief Computes the LogSoftmax of y_hat + Negative LogLikelihood with y
+// @brief Computes the Softmax of y_hat + Negative LogLikelihood with y
 // @param y_hat: output predictions of size [batch, num_classes]
 // @param y: indices of ground truth values of size [batch]
 // @returns LossResult containing loss value and 
 LossResult CrossEntropy(Network* net, Data1D* y_hat, int* y) {
-    double sum, tmp, pred, max;
-    int idx;
     LossResult result;
     result.dL = CreateData1D(y_hat->n, y_hat->b);
     init_matrix(result.dL->mat, 0.0, result.dL->b, result.dL->n);
     result.value = 0.0;
     result.accuracy = 0.0;
+    double sum;
     float eps = 1e-7;
-    float wd_factor = 0.0001;
 
-    // print_data1d(y_hat);
-    // Compute softmax in dL
-    float weight_norm = GetLayersNorm(net);
-
+    // Compute softmax in dL for Loss value and then dL
     for (int i = 0; i < y_hat->b; i++) {
         sum = eps;
         for (int j = 0; j < y_hat->n; j++) {
             result.dL->mat[i][j] = exp(y_hat->mat[i][j]);
             sum += result.dL->mat[i][j];
         }
-        //printf("Softmax b4: \n");
-        //print_data1d(result.dL);
 
         for (int j = 0; j < y_hat->n; j++)
             result.dL->mat[i][j] /= sum;
 
         result.value -= logf(result.dL->mat[i][y[i]]+eps);
+
         if (argmax_vector(result.dL->mat[i], y_hat->n) == y[i])
             result.accuracy++;
-        //printf("Softmax: \n");
+
         result.dL->mat[i][y[i]] -= 1.0;
-        // for (int j = 0; j < y_hat->n; j++)
-        //     result.dL->mat[i][j] *= 2 * weight_norm * wd_factor;
     }
 
-    //print_data1d(result.dL);
-
     result.accuracy = result.accuracy / y_hat->b;
-    result.value = result.value / y_hat->b;// * weight_norm * wd_factor / y_hat->b;
+    result.value = result.value / y_hat->b;
+
     return result;
 }
 
@@ -664,7 +651,7 @@ void LearnLinearLayer(LinearLayer* l, float learning_rate) {
 
     #pragma omp parallel for
     for (int i = 0; i < l->out; i++) {
-        //l->b[i] -= l->db[i] * learning_rate;
+        l->b[i] -= l->db[i] * learning_rate;
         for (int j = 0; j < l->in; j++) 
             l->w[i][j] -= l->dW[i][j] * learning_rate;
     }
@@ -692,9 +679,7 @@ void DestroyLinearLayer(LinearLayer* layer) {
 ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with_gradient, int random) {
     ConvLayer* c = (ConvLayer*) malloc(sizeof(ConvLayer));
     c->w = square_allocate_2d(out_channels, in_channels);
-    //c->b = (float*) malloc(sizeof(float)*out_channels);
     c->dW = with_gradient ? square_allocate_2d(out_channels, in_channels) : NULL;
-    //c->db = with_gradient ? (float*) malloc(sizeof(float)*out_channels) : NULL;
     c->X = NULL;
 
     for (int i=0; i<out_channels; i++) 
@@ -723,13 +708,9 @@ ConvLayer* CreateConvLayer(int in_channels, int out_channels, int size, int with
 }
 
 void RandomInitConvLayer(ConvLayer* c) {
-    int size = c->size;
-
-    //random_init_vector(c->b, c->out);
-
     for (int i=0; i < c->out; i++) {
         for (int j=0; j < c->in; j++) {
-            random_init_matrix(c->w[i][j].mat, size, size);
+            random_init_matrix(c->w[i][j].mat, c->size, c->size);
         }
     }
 }
@@ -737,9 +718,8 @@ void RandomInitConvLayer(ConvLayer* c) {
 void LearnConvLayer(ConvLayer* c, float learning_rate) {
     assert(c->dW != NULL && "Gradient was not calculated for this conv layer");
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i=0; i<c->out; i++) {
-        //c->b[i] -= c->db[i] * learning_rate;
         for (int j=0; j<c->in; j++)
             for(int k=0; k<c->size; k++)
                 for(int l=0; l<c->size; l++)
@@ -767,14 +747,12 @@ void DestroyConvLayer(ConvLayer* c) {
         }
     free(c->w[0]);
     free(c->w);
-    //free(c->b);
     c->w = NULL;
     if (c->dW != NULL) {
         free(c->dW[0]);
         free(c->dW);
         c->dW = NULL;
     }
-    //if (c->db != NULL) free(c->db);
     if (c->X != NULL) DestroyData2D(c->X);
 
     free(c);
