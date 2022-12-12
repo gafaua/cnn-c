@@ -63,15 +63,6 @@ void deconvolution(Square dY, Square X, Square dX, Square W, Square dW) {
 Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
     assert(input->c == layer->in && "The input must have the same number of channels as the input channels of this layer");
 
-    if (layer->dW != NULL) {
-        // Save inputs in layer->X
-        if (layer->X != NULL) {
-            DestroyData2D(layer->X);
-        }
-
-        layer->X = input;
-    }
-
     int output_size = get_output_size(input->size, layer->size);
     Data2D* output = CreateData2DZeros(output_size, input->b, layer->out);
     int i,j,k;
@@ -85,6 +76,18 @@ Data2D* conv_forward(ConvLayer* layer, Data2D* input) {
             for (k = 0; k < input->c; k++)
                 convolution(in[k], kernels[k], out);
         }
+    }
+
+    if (layer->dW != NULL) {
+        // Save inputs in layer->X
+        if (layer->X != NULL) {
+            DestroyData2D(layer->X);
+        }
+
+        layer->X = input;
+    }
+    else {
+        DestroyData2D(input);
     }
 
     return output;
@@ -141,15 +144,6 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
         exit(1);
     }
     
-    if (layer->dW != NULL) {
-        // Save inputs in layer.X
-        if (layer->X != NULL) {
-            DestroyData1D(layer->X);
-        }
-
-        layer->X = input;
-    }
-
     Data1D* outputs = CreateData1D(layer->out, input->b);
     init_matrix(outputs->mat, 0.0, outputs->b, outputs->n);
     
@@ -159,6 +153,18 @@ Data1D* linear_forward(LinearLayer* layer, Data1D* input) {
     for (int i = 0; i < input->b; i++)
         for (int j = 0; j < layer->out; j++)
             outputs->mat[i][j] += layer->b[j];
+    
+    if (layer->dW != NULL) {
+        // Save inputs in layer.X
+        if (layer->X != NULL) {
+            DestroyData1D(layer->X);
+        }
+
+        layer->X = input;
+    }
+    else {
+        DestroyData1D(input);
+    }
 
     return outputs;
 }

@@ -28,6 +28,5 @@ void load_batch(Data2D* inputs, int* gt, int pos, int batch, float data[][784], 
 Data2D* LoadImage(char* name);
 void SoftmaxTransform(Data1D* data);
 
-
 float** LoadImagePgm(char* name,int *length,int *width);
 void SaveImagePgm(char* name,float** mat,int length,int width);
