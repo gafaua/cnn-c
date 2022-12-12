@@ -1,2 +1,6 @@
+mkdir -p obj;
 make clean;
-make; make test; make demo; make featuremaps;
+make;
+make test;
+make demo;
+make featuremaps;
